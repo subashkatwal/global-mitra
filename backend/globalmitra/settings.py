@@ -68,14 +68,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'globalmitra.wsgi.application'
 
+# At the top of settings.py, add:
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
+# Replace DATABASES with this:
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('DB_NAME', 'GlobalMitraDB'),
+        'USER': os.getenv('DB_USER', 'sa'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'Subash@@2314##21'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '1433'),
+        'OPTIONS': {
+            'driver': 'ODBC Driver 17 for SQL Server',
+            'extra_params': 'TrustServerCertificate=yes;',
+        },
     }
 }
 

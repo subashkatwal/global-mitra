@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Compass, MapPin, Users, BarChart3, 
   Bell, Menu, X, LogOut,
-  Shield
+  Shield, UserPlus
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import type { View } from '@/App';
@@ -12,6 +12,7 @@ interface NavbarProps {
   currentView: View;
   onNavigate: (view: View) => void;
   onLoginClick: () => void;
+  onSignupClick: () => void;
   unreadNotifications: number;
   comparisonCount: number;
   onComparisonClick: () => void;
@@ -22,6 +23,7 @@ export function Navbar({
   currentView, 
   onNavigate, 
   onLoginClick,
+  onSignupClick,
   unreadNotifications,
   comparisonCount,
   onComparisonClick,
@@ -181,15 +183,30 @@ export function Navbar({
                 </motion.button>
               </div>
             ) : (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5, type: 'spring', stiffness: 400 }}
-                onClick={onLoginClick}
-                className="btn-primary text-sm"
-              >
-                Join Free
-              </motion.button>
+              <div className="flex items-center gap-2">
+                {/* Login Button */}
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.45, type: 'spring', stiffness: 400 }}
+                  onClick={onLoginClick}
+                  className="hidden sm:flex px-4 py-2 rounded-xl text-[#2C3E50] font-medium hover:bg-gray-100 transition-colors"
+                >
+                  Sign In
+                </motion.button>
+
+                {/* Get Started Button - Opens Signup Modal */}
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5, type: 'spring', stiffness: 400 }}
+                  onClick={onSignupClick}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl gradient-primary text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-orange-500/30"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Get Started
+                </motion.button>
+              </div>
             )}
 
             {/* Mobile Menu Button */}
@@ -240,6 +257,31 @@ export function Navbar({
                 );
               })}
               
+              {!isAuthenticated && (
+                <>
+                  <button
+                    onClick={() => {
+                      onLoginClick();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-[#2C3E50] hover:bg-gray-50"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => {
+                      onSignupClick();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-white gradient-primary"
+                  >
+                    <UserPlus className="w-5 h-5" />
+                    Get Started
+                  </button>
+                </>
+              )}
+
               {isAuthenticated && user?.role === 'guide' && (
                 <button
                   onClick={() => {

@@ -1,36 +1,83 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { X, Mail, Lock, Eye, EyeOff, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+
+// TODO: Backend Integration (Django REST Framework)
+// API Endpoint: POST /api/auth/login/
+// Swagger Documentation: /api/docs/
+// 
+// Expected Request Body:
+// {
+//   "email": string,
+//   "password": string
+// }
+//
+// Expected Response (Success 200):
+// {
+//   "user": {
+//     "id": number,
+//     "email": string,
+//     "full_name": string,
+//     "role": "tourist" | "guide",
+//     "avatar": string | null,
+//     "is_verified": boolean
+//   },
+//   "tokens": {
+//     "access": string (JWT),
+//     "refresh": string (JWT)
+//   }
+// }
+//
+// Expected Response (Error 401):
+// {
+//   "detail": "Invalid credentials" | "Account not verified" | "Account suspended"
+// }
+//
+// TODO: Implement JWT refresh token rotation
+// API Endpoint: POST /api/auth/refresh/
+// Request: { "refresh": string }
+// Response: { "access": string }
+
+// TODO: Forgot Password Flow
+// API Endpoint: POST /api/auth/password-reset/
+// Request: { "email": string }
+// Response: { "detail": "Password reset email sent" }
+//
+// Then user clicks link: /api/auth/password-reset-confirm/{uidb64}/{token}/
+// POST: { "new_password": string, "confirm_password": string }
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onSignupClick: () => void; // To switch to signup modal
 }
 
-type AuthMode = 'login' | 'register' | 'forgot';
+type AuthMode = 'login' | 'forgot';
 
-export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
+export function LoginModal({ isOpen, onClose, onSuccess, onSignupClick }: LoginModalProps) {
   const [mode, setMode] = useState<AuthMode>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
-  const { login, register } = useAuthStore();
+  const { login } = useAuthStore();
   
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-    name: '',
-    confirmPassword: ''
+    password: ''
   });
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const resetForm = () => {
-    setFormData({ email: '', password: '', name: '', confirmPassword: '' });
+    setFormData({ email: '', password: '' });
     setError('');
     setSuccess('');
+    setErrors({});
+    setMode('login');
   };
 
   const handleClose = () => {
@@ -38,14 +85,51 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
     onClose();
   };
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    if (mode === 'login' && !formData.password) {
+      newErrors.password = 'Password is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    
+    if (!validateForm()) return;
+    
     setIsLoading(true);
 
     try {
       if (mode === 'login') {
+        // TODO: Replace with actual Django API integration
+        // const response = await authApi.login({
+        //   email: formData.email,
+        //   password: formData.password
+        // });
+        
+        // TODO: Store tokens securely (httpOnly cookies preferred)
+        // Cookies.set('access_token', response.tokens.access, { secure: true, sameSite: 'strict' });
+        // Cookies.set('refresh_token', response.tokens.refresh, { secure: true, sameSite: 'strict' });
+        
+        // TODO: Update global auth state
+        // useAuthStore.getState().setUser(response.user);
+        // useAuthStore.getState().setAuthenticated(true);
+        
+        // TODO: Setup axios interceptors for automatic token refresh
+        // setupAuthInterceptors(response.tokens.access);
+
         const success = await login(formData.email, formData.password);
         if (success) {
           setSuccess('Welcome back!');
@@ -56,37 +140,35 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
         } else {
           setError('Invalid email or password. Try demo@globalmitra.com / password');
         }
-      } else if (mode === 'register') {
-        if (formData.password !== formData.confirmPassword) {
-          setError('Passwords do not match');
-          setIsLoading(false);
-          return;
-        }
-        const success = await register(formData.email, formData.password, formData.name);
-        if (success) {
-          setSuccess('Account created successfully!');
-          setTimeout(() => {
-            onSuccess();
-            handleClose();
-          }, 1000);
-        }
       } else {
-        setSuccess('Password reset link sent!');
+        // Forgot password mode
+        // TODO: Integrate with Django password reset endpoint
+        // await authApi.requestPasswordReset(formData.email);
+        
+        setSuccess('Password reset link sent! Check your email.');
         setTimeout(() => {
           setMode('login');
           resetForm();
         }, 2000);
       }
-    } catch (err) {
+    } catch (err: any) {
+      // TODO: Handle specific Django error responses
+      // if (err.response?.status === 401) {
+      //   setError('Invalid email or password');
+      // } else if (err.response?.status === 403) {
+      //   setError('Account not verified. Please check your email.');
+      // } else if (err.response?.data?.detail) {
+      //   setError(err.response.data.detail);
+      // }
       setError('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const switchMode = (newMode: AuthMode) => {
-    setMode(newMode);
-    resetForm();
+  const switchToSignup = () => {
+    handleClose();
+    onSignupClick();
   };
 
   return (
@@ -119,15 +201,22 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                   <X className="w-5 h-5" />
                 </button>
                 
+                {mode === 'forgot' && (
+                  <button
+                    onClick={() => setMode('login')}
+                    className="absolute top-4 left-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                )}
+                
                 <h2 className="font-heading text-2xl font-bold mb-2">
-                  {mode === 'login' && 'Welcome Back!'}
-                  {mode === 'register' && 'Join Global Mitra'}
-                  {mode === 'forgot' && 'Reset Password'}
+                  {mode === 'login' ? 'Welcome Back!' : 'Reset Password'}
                 </h2>
                 <p className="text-white/80 text-sm">
-                  {mode === 'login' && 'Sign in to continue your journey'}
-                  {mode === 'register' && 'Start sharing your travel experiences'}
-                  {mode === 'forgot' && 'We\'ll send you a reset link'}
+                  {mode === 'login' 
+                    ? 'Sign in to continue your journey' 
+                    : 'We\'ll send you a link to reset your password'}
                 </p>
               </div>
 
@@ -155,64 +244,63 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {mode === 'register' && (
+                  {/* Email */}
+                  <div className="space-y-1">
                     <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <input
-                        type="text"
-                        placeholder="Full Name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#FF6B35] focus:outline-none transition-colors"
-                        required
+                        type="email"
+                        placeholder="Email address"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 transition-colors ${
+                          errors.email ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-[#FF6B35]'
+                        } focus:outline-none`}
                       />
                     </div>
-                  )}
-
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="email"
-                      placeholder="Email address"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#FF6B35] focus:outline-none transition-colors"
-                      required
-                    />
+                    {errors.email && (
+                      <p className="text-red-500 text-xs ml-1">{errors.email}</p>
+                    )}
                   </div>
 
-                  {mode !== 'forgot' && (
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 focus:border-[#FF6B35] focus:outline-none transition-colors"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
+                  {/* Password - Only show in login mode */}
+                  {mode === 'login' && (
+                    <div className="space-y-1">
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Password"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 transition-colors ${
+                            errors.password ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-[#FF6B35]'
+                          } focus:outline-none`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                      {errors.password && (
+                        <p className="text-red-500 text-xs ml-1">{errors.password}</p>
+                      )}
                     </div>
                   )}
 
-                  {mode === 'register' && (
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Confirm Password"
-                        value={formData.confirmPassword}
-                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#FF6B35] focus:outline-none transition-colors"
-                        required
-                      />
+                  {/* Forgot Password Link - Only in login mode */}
+                  {mode === 'login' && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setMode('forgot')}
+                        className="text-sm text-[#FF6B35] hover:underline"
+                      >
+                        Forgot your password?
+                      </button>
                     </div>
                   )}
 
@@ -227,9 +315,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                         Please wait...
                       </span>
                     ) : (
-                      mode === 'login' ? 'Sign In' :
-                      mode === 'register' ? 'Create Account' :
-                      'Send Reset Link'
+                      mode === 'login' ? 'Sign In' : 'Send Reset Link'
                     )}
                   </button>
                 </form>
@@ -241,49 +327,34 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                   </div>
                 )}
 
-                {/* Footer Links */}
-                <div className="mt-6 text-center text-sm">
-                  {mode === 'login' && (
-                    <>
-                      <button
-                        onClick={() => switchMode('forgot')}
-                        className="text-[#FF6B35] hover:underline mb-4 block w-full"
-                      >
-                        Forgot your password?
-                      </button>
-                      <p className="text-[#7F8C8D]">
-                        Don&apos;t have an account?{' '}
-                        <button
-                          onClick={() => switchMode('register')}
-                          className="text-[#FF6B35] font-semibold hover:underline"
-                        >
-                          Sign up
-                        </button>
-                      </p>
-                    </>
-                  )}
-
-                  {mode === 'register' && (
+                {/* Footer - Sign Up Link */}
+                {mode === 'login' && (
+                  <div className="mt-6 text-center text-sm">
                     <p className="text-[#7F8C8D]">
-                      Already have an account?{' '}
+                      Don&apos;t have an account?{' '}
                       <button
-                        onClick={() => switchMode('login')}
+                        onClick={switchToSignup}
                         className="text-[#FF6B35] font-semibold hover:underline"
                       >
-                        Sign in
+                        Sign up
                       </button>
                     </p>
-                  )}
+                  </div>
+                )}
 
-                  {mode === 'forgot' && (
+                {mode === 'forgot' && (
+                  <div className="mt-6 text-center text-sm">
                     <button
-                      onClick={() => switchMode('login')}
-                      className="text-[#FF6B35] font-semibold hover:underline"
+                      onClick={() => setMode('login')}
+                      className="text-[#7F8C8D] hover:text-[#2C3E50]"
                     >
-                      Back to sign in
+                      Remember your password?{' '}
+                      <span className="text-[#FF6B35] font-semibold hover:underline">
+                        Sign in
+                      </span>
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

@@ -21,6 +21,7 @@ import { TestimonialsSection } from '@/components/TestimonialsSection';
 import { CTASection } from '@/components/CTASection';
 import { Footer } from '@/components/Footer';
 import { LoginModal } from '@/components/LoginModal';
+import { SignupModal } from '@/components/SignupModal'; // Import new SignupModal
 import { PlaceDetails } from '@/components/PlaceDetails';
 import { ComparisonDrawer } from '@/components/ComparisonDrawer';
 import { ReportModal } from '@/components/ReportModal';
@@ -35,6 +36,7 @@ function App() {
   const [currentView, setCurrentView] = useState<View>('home');
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isSignupOpen, setIsSignupOpen] = useState(false); // New state for signup modal
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -57,7 +59,7 @@ function App() {
 
   const handleNavigate = (view: View) => {
     if ((view === 'profile' || view === 'guide') && !isAuthenticated) {
-      setIsLoginOpen(true);
+      setIsSignupOpen(true); // Open signup instead of login for new users
       return;
     }
     setCurrentView(view);
@@ -71,6 +73,7 @@ function App() {
         currentView={currentView}
         onNavigate={handleNavigate}
         onLoginClick={() => setIsLoginOpen(true)}
+        onSignupClick={() => setIsSignupOpen(true)} // Pass signup handler
         unreadNotifications={unreadCount}
         comparisonCount={comparisonList.length}
         onComparisonClick={() => setIsComparisonOpen(true)}
@@ -97,7 +100,7 @@ function App() {
               <FeaturesSection />
               <PopularDestinations onPlaceClick={handlePlaceClick} />
               <TestimonialsSection />
-              <CTASection onJoinClick={() => setIsLoginOpen(true)} />
+              <CTASection onJoinClick={() => setIsSignupOpen(true)} /> {/* Open signup on CTA */}
             </motion.div>
           )}
 
@@ -183,6 +186,20 @@ function App() {
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
         onSuccess={() => setIsLoginOpen(false)}
+        onSignupClick={() => {
+          setIsLoginOpen(false);
+          setIsSignupOpen(true);
+        }}
+      />
+
+      <SignupModal
+        isOpen={isSignupOpen}
+        onClose={() => setIsSignupOpen(false)}
+        onSuccess={() => setIsSignupOpen(false)}
+        onLoginClick={() => {
+          setIsSignupOpen(false);
+          setIsLoginOpen(true);
+        }}
       />
 
       <ReportModal
