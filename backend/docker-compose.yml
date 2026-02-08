@@ -1,24 +1,47 @@
+version: '3.8'
+
 services:
-  sqlserver:
+  db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: globalmitra-db
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=${DB_PASSWORD}
+      - MSSQL_SA_PASSWORD=Subash@@2314##21
       - MSSQL_PID=Developer
-      - MSSQL_TCP_PORT=1433
     ports:
-      - "1433:1433"
+      - "1434:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
     networks:
       - globalmitra-network
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${DB_PASSWORD} -Q 'SELECT 1' -C || exit 1"]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Subash@@2314##21' -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 30s
+
+  backend:
+    build: .
+    container_name: globalmitra-backend
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-change-me-in-production}
+      - DEBUG=${DEBUG:-True}
+      - DB_NAME=${DB_NAME:-GlobalMitraDB}
+      - DB_USER=${DB_USER:-sa}
+      - DB_PASSWORD=${DB_PASSWORD:-Subash@@2314##21}
+      - DB_HOST=db
+      - DB_PORT=1433
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - globalmitra-network
 
   adminer:
     image: adminer:latest
@@ -26,12 +49,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - ADMINER_DEFAULT_SERVER=sqlserver
+      - ADMINER_DEFAULT_SERVER=db
     networks:
       - globalmitra-network
     depends_on:
-      sqlserver:
-        condition: service_healthy
+      - db
 
 networks:
   globalmitra-network:
