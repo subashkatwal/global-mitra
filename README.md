@@ -222,14 +222,4 @@ DATABASE_PORT=1433
 
 This project is licensed under the MIT License.
 
----
-
-## 👤 Author
-
-**Subash Katwal**
-
-LinkedIn: [https://www.linkedin.com/](https://www.linkedin.com/)
-
----
-
 © 2026 Global Mitra
