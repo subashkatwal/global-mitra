@@ -1,5 +1,5 @@
 from django.db import models
-from profiles.models import User
+from accounts.models import User
 from destinations.models import Destination
 import uuid
 
@@ -16,7 +16,12 @@ class IncidentReport(models.Model):
 
     description = models.TextField()
     category = models.CharField(max_length=100)
-    images = models.JSONField(default=list)
+    image = models.ImageField(
+        upload_to='incident_images/',  
+        default='incident_images/default.jpg',  
+        blank=True,
+        null=True
+    )
 
     latitude = models.FloatField()
     longitude = models.FloatField()

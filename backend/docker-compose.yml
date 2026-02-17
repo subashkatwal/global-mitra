@@ -10,8 +10,6 @@ services:
       - "1434:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
-    networks:
-      - globalmitra-network
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Subash@@2314##21' -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
@@ -20,35 +18,27 @@ services:
       start_period: 60s
 
   backend:
-    build: 
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: globalmitra-backend
-    volumes:
-      - .:/app
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
     ports:
       - "8005:8000"
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-change-me-in-production-key-12345}
-      DEBUG: ${DEBUG:-True}
-      DB_NAME: ${DB_NAME:-GlobalMitraDB}
-      DB_USER: ${DB_USER:-sa}
-      DB_PASSWORD: ${DB_PASSWORD:-Subash@@2314##21}
-      DB_HOST: db
+      DEBUG: "True"
+      DB_NAME: "GlobalMitraDB"
+      DB_USER: "sa"
+      DB_PASSWORD: "Subash@@2314##21"
+      DB_HOST: "db"
       DB_PORT: "1433"
-      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
-      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
-      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin123}
+      DJANGO_SUPERUSER_USERNAME: "admin"
+      DJANGO_SUPERUSER_EMAIL: "admin@example.com"
+      DJANGO_SUPERUSER_PASSWORD: "admin123"
+    volumes:
+      - .:/app
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - globalmitra-network
     stdin_open: true
     tty: true
-    restart: unless-stopped
 
   adminer:
     image: adminer:latest
@@ -57,18 +47,8 @@ services:
       - "8080:8080"
     environment:
       ADMINER_DEFAULT_SERVER: db
-      ADMINER_DESIGN: "nette"
-    networks:
-      - globalmitra-network
     depends_on:
       - db
-    restart: unless-stopped
-
-networks:
-  globalmitra-network:
-    driver: bridge
 
 volumes:
   sqlserver_data:
-  static_volume:
-  media_volume:

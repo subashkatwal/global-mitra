@@ -1,7 +1,15 @@
-from django.urls import path
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from django.urls import path,include
+
 
 urlpatterns = [
-    path('schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    
+
+    path('auth', include('accounts.auth.v1.urls')),
+    path('profile', include('profiles.v1.urls')),
+    # path('reports', include('reports.v1.urls')),
+    # path('destinations', include('voting.v1.urls')),
+    # path('socials', include('posts.v1.urls')),
+
 ]
+
+
