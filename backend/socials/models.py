@@ -1,5 +1,5 @@
 from django.db import models
-from profiles.models import User
+from accounts.models import User
 from destinations.models import Destination
 import uuid
 
@@ -18,7 +18,7 @@ class Post(models.Model):
     createdAt = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Post by {self.user.fullName}"
+        return f"Post by {self.User.fullName}"
 
 
 class Comment(models.Model):
@@ -32,7 +32,7 @@ class Comment(models.Model):
     createdAt = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Comment by {self.user.fullName}"
+        return f"Comment by {self.User.fullName}"
 
 class Bookmark(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookmarks')
