@@ -1,4 +1,4 @@
-# 🌏 Global Mitra — Travel Safety & Incident Alert Platform
+## 🌏 Global Mitra - Travel Safety & Incident Alert Platform
 
 > A full-stack travel safety platform for tourists and trekking guides in Nepal, featuring a real-time AI-powered incident detection system using TF-IDF and DBSCAN clustering.
 
