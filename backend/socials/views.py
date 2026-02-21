@@ -1,434 +1,301 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
-from django.shortcuts import get_object_or_404
-from .models import Post, Comment, Bookmark, Share
-from .serializers import PostSerializer, CommentSerializer, BookmarkSerializer, ShareSerializer
-from .permissions import IsOwnerOrReadOnly
+from rest_framework.generics import GenericAPIView
+from rest_framework.parsers import MultiPartParser, FormParser
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from django.db.models import Count
+from socials.models import Post, Comment, Bookmark, Share
+from socials.serializers import PostSerializer, CommentSerializer, ShareSerializer
+from globalmitra.permissions import IsOwnerOrReadOnly
 
 
-class PostViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for Post model with all CRUD operations
-    
-    Endpoints:
-    - GET /api/posts/ - List all posts
-    - GET /api/posts/{id}/ - Retrieve a specific post
-    - POST /api/posts/ - Create a new post (authenticated users only)
-    - PATCH /api/posts/{id}/ - Update a post (owner only)
-    - DELETE /api/posts/{id}/ - Delete a post (owner only)
-    """
-    queryset = Post.objects.all().select_related('user', 'destination').prefetch_related('comments', 'bookmarkedBy', 'sharedBy')
+
+@extend_schema(
+    tags=["Posts"],
+    description="List all tourism posts or create a new one. Anyone can view, authenticated users can post.",
+    responses={
+        200: PostSerializer(many=True),
+        201: PostSerializer,
+        401: OpenApiResponse(description="Authentication required.")
+    }
+)
+class PostListCreateView(generics.ListCreateAPIView):
     serializer_class = PostSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        
-        # Filter by destination
-        destination_id = self.request.query_params.get('destination_id')
-        if destination_id:
-            queryset = queryset.filter(destination_id=destination_id)
-        
-        # Filter by user
-        user_id = self.request.query_params.get('user_id')
-        if user_id:
-            queryset = queryset.filter(user_id=user_id)
-        
-        # Filter by authenticated user's posts
-        my_posts = self.request.query_params.get('my_posts')
-        if my_posts and self.request.user.is_authenticated:
-            queryset = queryset.filter(user=self.request.user)
-        
-        return queryset.order_by('-createdAt')
+        return Post.objects.select_related('user').prefetch_related(
+            'comments', 'bookmarkedBy', 'sharedBy'
+        ).order_by('-createdAt')
+
+    def get_serializer_context(self):
+        return {'request': self.request}
 
     def list(self, request, *args, **kwargs):
-        """GET /api/posts/ - List all posts"""
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response({
-            'success': True,
+            'message': 'Posts retrieved successfully.',
             'count': queryset.count(),
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
-    def retrieve(self, request, *args, **kwargs):
-        """GET /api/posts/{id}/ - Retrieve a specific post"""
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response({
-            'success': True,
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
-
     def create(self, request, *args, **kwargs):
-        """POST /api/posts/ - Create a new post"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        serializer.save()
         return Response({
-            'success': True,
-            'message': 'Post created successfully',
+            'message': 'Post created successfully.',
             'data': serializer.data
         }, status=status.HTTP_201_CREATED)
 
-    def partial_update(self, request, *args, **kwargs):
-        """PATCH /api/posts/{id}/ - Update a post"""
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response({
-            'success': True,
-            'message': 'Post updated successfully',
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
 
-    def destroy(self, request, *args, **kwargs):
-        """DELETE /api/posts/{id}/ - Delete a post"""
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response({
-            'success': True,
-            'message': 'Post deleted successfully'
-        }, status=status.HTTP_200_OK)
+@extend_schema(
+    tags=["Posts"],
+    description="Retrieve, update or delete a post. Only owner can update/delete.",
+    responses={
+        200: PostSerializer,
+        403: OpenApiResponse(description="Not your post."),
+        404: OpenApiResponse(description="Post not found.")
+    }
+)
+class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Post.objects.select_related('user').prefetch_related('comments', 'bookmarkedBy', 'sharedBy')
+    serializer_class = PostSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    http_method_names = ['get', 'patch', 'delete']
 
-    @action(detail=True, methods=['get'])
-    def comments(self, request, pk=None):
-        """GET /api/posts/{id}/comments/ - Get all comments for a post"""
-        post = self.get_object()
-        comments = post.comments.all().order_by('-createdAt')
-        serializer = CommentSerializer(comments, many=True)
-        return Response({
-            'success': True,
-            'count': comments.count(),
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated(), IsOwnerOrReadOnly()]
 
-    @action(detail=True, methods=['get'])
-    def bookmarks(self, request, pk=None):
-        """GET /api/posts/{id}/bookmarks/ - Get all bookmarks for a post"""
-        post = self.get_object()
-        bookmarks = post.bookmarkedBy.all().order_by('-createdAt')
-        serializer = BookmarkSerializer(bookmarks, many=True)
-        return Response({
-            'success': True,
-            'count': bookmarks.count(),
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
-
-
-class CommentViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for Comment model with all CRUD operations
-    
-    Endpoints:
-    - GET /api/comments/ - List all comments
-    - GET /api/comments/{id}/ - Retrieve a specific comment
-    - POST /api/comments/ - Create a new comment (authenticated users only)
-    - PATCH /api/comments/{id}/ - Update a comment (owner only)
-    - DELETE /api/comments/{id}/ - Delete a comment (owner only)
-    """
-    queryset = Comment.objects.all().select_related('user', 'post')
-    serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        
-        # Filter by post
-        post_id = self.request.query_params.get('post_id')
-        if post_id:
-            queryset = queryset.filter(post_id=post_id)
-        
-        # Filter by user
-        user_id = self.request.query_params.get('user_id')
-        if user_id:
-            queryset = queryset.filter(user_id=user_id)
-        
-        return queryset.order_by('-createdAt')
-
-    def list(self, request, *args, **kwargs):
-        """GET /api/comments/ - List all comments"""
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'success': True,
-            'count': queryset.count(),
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
+    def get_serializer_context(self):
+        return {'request': self.request}
 
     def retrieve(self, request, *args, **kwargs):
-        """GET /api/comments/{id}/ - Retrieve a specific comment"""
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response({
-            'success': True,
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
+        serializer = self.get_serializer(self.get_object())
+        return Response({'message': 'Post retrieved successfully.', 'data': serializer.data})
 
-    def create(self, request, *args, **kwargs):
-        """POST /api/comments/ - Create a new comment"""
-        serializer = self.get_serializer(data=request.data)
+    def patch(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_object(), data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response({
-            'success': True,
-            'message': 'Comment created successfully',
-            'data': serializer.data
-        }, status=status.HTTP_201_CREATED)
+        serializer.save()
+        return Response({'message': 'Post updated successfully.', 'data': serializer.data})
 
-    def partial_update(self, request, *args, **kwargs):
-        """PATCH /api/comments/{id}/ - Update a comment"""
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response({
-            'success': True,
-            'message': 'Comment updated successfully',
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
-
-    def destroy(self, request, *args, **kwargs):
-        """DELETE /api/comments/{id}/ - Delete a comment"""
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response({
-            'success': True,
-            'message': 'Comment deleted successfully'
-        }, status=status.HTTP_200_OK)
+    def delete(self, request, *args, **kwargs):
+        self.get_object().delete()
+        return Response({'message': 'Post deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
 
-class BookmarkViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for Bookmark model with all CRUD operations
-    
-    Endpoints:
-    - GET /api/bookmarks/ - List all bookmarks
-    - GET /api/bookmarks/{id}/ - Retrieve a specific bookmark
-    - POST /api/bookmarks/ - Create a new bookmark (authenticated users only)
-    - PATCH /api/bookmarks/{id}/ - Update a bookmark (owner only)
-    - DELETE /api/bookmarks/{id}/ - Delete a bookmark (owner only)
-    """
-    queryset = Bookmark.objects.all().select_related('user', 'post')
-    serializer_class = BookmarkSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+@extend_schema(
+    tags=["Posts"],
+    description="Toggle bookmark on a post. First click bookmarks, second click removes bookmark.",
+    parameters=[
+        OpenApiParameter(name='pk', description='UUID of the post', required=True, type=str, location=OpenApiParameter.PATH)
+    ],
+    responses={
+        200: OpenApiResponse(description="Bookmark removed."),
+        201: OpenApiResponse(description="Post bookmarked."),
+        404: OpenApiResponse(description="Post not found.")
+    }
+)
+class PostBookmarkView(GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        
-        # Filter by authenticated user's bookmarks
-        my_bookmarks = self.request.query_params.get('my_bookmarks')
-        if my_bookmarks and self.request.user.is_authenticated:
-            queryset = queryset.filter(user=self.request.user)
-        
-        # Filter by post
-        post_id = self.request.query_params.get('post_id')
-        if post_id:
-            queryset = queryset.filter(post_id=post_id)
-        
-        # Filter by user
-        user_id = self.request.query_params.get('user_id')
-        if user_id:
-            queryset = queryset.filter(user_id=user_id)
-        
-        return queryset.order_by('-createdAt')
-
-    def list(self, request, *args, **kwargs):
-        """GET /api/bookmarks/ - List all bookmarks"""
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response({
-            'success': True,
-            'count': queryset.count(),
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
-
-    def retrieve(self, request, *args, **kwargs):
-        """GET /api/bookmarks/{id}/ - Retrieve a specific bookmark"""
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response({
-            'success': True,
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
-
-    def create(self, request, *args, **kwargs):
-        """POST /api/bookmarks/ - Create a new bookmark"""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response({
-            'success': True,
-            'message': 'Bookmark created successfully',
-            'data': serializer.data
-        }, status=status.HTTP_201_CREATED)
-
-    def partial_update(self, request, *args, **kwargs):
-        """PATCH /api/bookmarks/{id}/ - Update a bookmark"""
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response({
-            'success': True,
-            'message': 'Bookmark updated successfully',
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
-
-    def destroy(self, request, *args, **kwargs):
-        """DELETE /api/bookmarks/{id}/ - Delete a bookmark"""
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response({
-            'success': True,
-            'message': 'Bookmark removed successfully'
-        }, status=status.HTTP_200_OK)
-
-    @action(detail=False, methods=['post'])
-    def toggle(self, request):
-        """POST /api/bookmarks/toggle/ - Toggle bookmark for a post"""
-        post_id = request.data.get('post_id')
-        
-        if not post_id:
-            return Response({
-                'success': False,
-                'message': 'post_id is required'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
+    def post(self, request, pk):
         try:
-            # Check if bookmark exists
-            bookmark = Bookmark.objects.filter(user=request.user, post_id=post_id).first()
-            
-            if bookmark:
-                # Remove bookmark
-                bookmark.delete()
-                return Response({
-                    'success': True,
-                    'message': 'Bookmark removed successfully',
-                    'bookmarked': False
-                }, status=status.HTTP_200_OK)
-            else:
-                # Create bookmark
-                bookmark = Bookmark.objects.create(user=request.user, post_id=post_id)
-                serializer = self.get_serializer(bookmark)
-                return Response({
-                    'success': True,
-                    'message': 'Bookmark added successfully',
-                    'bookmarked': True,
-                    'data': serializer.data
-                }, status=status.HTTP_201_CREATED)
-        
-        except Exception as e:
+            post = Post.objects.get(pk=pk)
+        except Post.DoesNotExist:
+            return Response({'message': 'Post not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        bookmark, created = Bookmark.objects.get_or_create(user=request.user, post=post)
+        if not created:
+            bookmark.delete()
             return Response({
-                'success': False,
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'message': 'Bookmark removed.',
+                'isBookmarked': False,
+                'bookmarkCount': post.bookmarkedBy.count()
+            }, status=status.HTTP_200_OK)
+
+        return Response({
+            'message': 'Post bookmarked.',
+            'isBookmarked': True,
+            'bookmarkCount': post.bookmarkedBy.count()
+        }, status=status.HTTP_201_CREATED)
 
 
-class ShareViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for Share model with all CRUD operations
-    
-    Endpoints:
-    - GET /api/shares/ - List all shares
-    - GET /api/shares/{id}/ - Retrieve a specific share
-    - POST /api/shares/ - Create a new share (authenticated users only)
-    - PATCH /api/shares/{id}/ - Update a share (owner only)
-    - DELETE /api/shares/{id}/ - Delete a share (owner only)
-    """
-    queryset = Share.objects.all().select_related('user', 'post')
-    serializer_class = ShareSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+@extend_schema(
+    tags=["Posts"],
+    description="Get all posts bookmarked by the logged-in user.",
+    responses={200: PostSerializer(many=True)}
+)
+class MyBookmarksView(generics.ListAPIView):
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        
-        # Filter by post
-        post_id = self.request.query_params.get('post_id')
-        if post_id:
-            queryset = queryset.filter(post_id=post_id)
-        
-        # Filter by user
-        user_id = self.request.query_params.get('user_id')
-        if user_id:
-            queryset = queryset.filter(user_id=user_id)
-        
-        # Filter by platform
-        platform = self.request.query_params.get('platform')
-        if platform:
-            queryset = queryset.filter(platform=platform)
-        
-        return queryset.order_by('-createdAt')
+        return Post.objects.filter(bookmarkedBy__user=self.request.user).select_related('user').prefetch_related(
+            'comments', 'bookmarkedBy', 'sharedBy'
+        ).order_by('-bookmarkedBy__createdAt')
+
+    def get_serializer_context(self):
+        return {'request': self.request}
 
     def list(self, request, *args, **kwargs):
-        """GET /api/shares/ - List all shares"""
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response({
-            'success': True,
+            'message': 'Bookmarked posts retrieved successfully.',
             'count': queryset.count(),
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
-    def retrieve(self, request, *args, **kwargs):
-        """GET /api/shares/{id}/ - Retrieve a specific share"""
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
+
+@extend_schema(
+    tags=["Posts"],
+    description="Share a post on a platform (facebook, twitter, whatsapp, etc.) or get share stats.",
+    parameters=[
+        OpenApiParameter(name='pk', description='UUID of the post', required=True, type=str, location=OpenApiParameter.PATH)
+    ],
+    responses={
+        200: OpenApiResponse(description="Share stats returned."),
+        201: ShareSerializer,
+        404: OpenApiResponse(description="Post not found.")
+    }
+)
+class PostShareView(GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ShareSerializer
+
+    def get_post(self, pk):
+        try:
+            return Post.objects.get(pk=pk)
+        except Post.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        post = self.get_post(pk)
+        if not post:
+            return Response({'message': 'Post not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        shares = post.sharedBy.select_related('user').order_by('-createdAt')
+        platform_stats = list(shares.values('platform').annotate(count=Count('id')).order_by('-count'))
         return Response({
-            'success': True,
+            'message': 'Share stats retrieved successfully.',
+            'totalShares': shares.count(),
+            'platformStats': platform_stats,
+            'data': ShareSerializer(shares, many=True, context={'request': request}).data
+        }, status=status.HTTP_200_OK)
+
+    def post(self, request, pk):
+        post = self.get_post(pk)
+        if not post:
+            return Response({'message': 'Post not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ShareSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user, post=post)
+        return Response({
+            'message': f"Shared on {serializer.validated_data['platform']} successfully.",
+            'shareUrl': serializer.data['shareUrl'],
+            'data': serializer.data
+        }, status=status.HTTP_201_CREATED)
+
+
+# ──────────────────────────────────────────
+# COMMENTS
+# ──────────────────────────────────────────
+@extend_schema(
+    tags=["Comments"],
+    description="List all comments for a post or add a new comment.",
+    parameters=[
+        OpenApiParameter(name='pk', description='UUID of the post', required=True, type=str, location=OpenApiParameter.PATH)
+    ],
+    responses={
+        200: CommentSerializer(many=True),
+        201: CommentSerializer,
+        404: OpenApiResponse(description="Post not found.")
+    }
+)
+class CommentListCreateView(generics.ListCreateAPIView):
+    serializer_class = CommentSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+    def get_queryset(self):
+        return Comment.objects.filter(post_id=self.kwargs['pk']).select_related('user').order_by('-createdAt')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        if not queryset.exists():
+            return Response({'message': 'No comments found for this post.', 'data': []}, status=status.HTTP_200_OK)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'message': 'Comments retrieved successfully.',
+            'count': queryset.count(),
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
-        """POST /api/shares/ - Create a new share"""
+        try:
+            post = Post.objects.get(pk=self.kwargs['pk'])
+        except Post.DoesNotExist:
+            return Response({'message': 'Post not found.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        serializer.save(user=request.user, post=post)
         return Response({
-            'success': True,
-            'message': 'Share recorded successfully',
+            'message': 'Comment added successfully.',
             'data': serializer.data
         }, status=status.HTTP_201_CREATED)
 
-    def partial_update(self, request, *args, **kwargs):
-        """PATCH /api/shares/{id}/ - Update a share"""
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
+
+@extend_schema(
+    tags=["Comments"],
+    description="Retrieve, update or delete a comment. Only owner can update/delete.",
+    responses={
+        200: CommentSerializer,
+        403: OpenApiResponse(description="Not your comment."),
+        404: OpenApiResponse(description="Comment not found.")
+    }
+)
+class CommentDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Comment.objects.select_related('user')
+    serializer_class = CommentSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    http_method_names = ['get', 'patch', 'delete']
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated(), IsOwnerOrReadOnly()]
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+    def retrieve(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_object())
+        return Response({'message': 'Comment retrieved successfully.', 'data': serializer.data})
+
+    def patch(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_object(), data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response({
-            'success': True,
-            'message': 'Share updated successfully',
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
+        serializer.save()
+        return Response({'message': 'Comment updated successfully.', 'data': serializer.data})
 
-    def destroy(self, request, *args, **kwargs):
-        """DELETE /api/shares/{id}/ - Delete a share"""
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response({
-            'success': True,
-            'message': 'Share deleted successfully'
-        }, status=status.HTTP_200_OK)
-
-    @action(detail=False, methods=['get'])
-    def stats(self, request):
-        """GET /api/shares/stats/ - Get share statistics by platform"""
-        post_id = request.query_params.get('post_id')
-        
-        queryset = self.get_queryset()
-        if post_id:
-            queryset = queryset.filter(post_id=post_id)
-        
-        # Get share counts by platform
-        from django.db.models import Count
-        stats = queryset.values('platform').annotate(count=Count('id')).order_by('-count')
-        
-        return Response({
-            'success': True,
-            'total_shares': queryset.count(),
-            'platform_stats': list(stats)
-        }, status=status.HTTP_200_OK)
+    def delete(self, request, *args, **kwargs):
+        self.get_object().delete()
+        return Response({'message': 'Comment deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
