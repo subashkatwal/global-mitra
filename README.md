@@ -1,4 +1,4 @@
-## 🌏 Global Mitra - Travel Safety & Incident Alert Platform
+# 🌏 Global Mitra Travel Safety & Incident Alert Platform
 
 > A full-stack travel safety platform for tourists and trekking guides in Nepal, featuring a real-time AI-powered incident detection system using TF-IDF and DBSCAN clustering.
 
@@ -26,7 +26,7 @@
 
 ## 1. Project Overview
 
-**Global Mitra** is a travel safety platform designed for Nepal's tourism ecosystem. It enables tourists and trekking guides to report hazards in real time — such as sudden weather changes, landslides, road blocks, or floods — and receive intelligent safety alerts.
+**Global Mitra** is a travel safety platform designed for Nepal's tourism ecosystem. It enables tourists and trekking guides to report hazards in real time such as sudden weather changes, landslides, road blocks, or floods and receive intelligent safety alerts.
 
 The core innovation is an **AI-powered incident alert engine** that:
 - Uses **TF-IDF** to extract meaningful keywords from user-submitted incident descriptions
@@ -34,7 +34,7 @@ The core innovation is an **AI-powered incident alert engine** that:
 - Automatically distinguishes genuine threats from false alarms
 - Broadcasts alerts without requiring 24/7 admin availability
 
-The system is built for the practical realities of Nepal's trekking context — unreliable internet, diverse languages, and the need for trustworthy, fast safety information.
+The system is built for the practical realities of Nepal's trekking context unreliable internet, diverse languages, and the need for trustworthy, fast safety information.
 
 ---
 
@@ -75,9 +75,9 @@ Global Mitra/
 │   │   ├── models.py
 │   │   └── views/
 │   │
-│   ├── reports/            # ⭐ Core Feature — Incident reporting & alerts
+│   ├── reports/            # ⭐ Core Feature Incident reporting & alerts
 │   │   ├── models.py       # IncidentReport, IncidentCluster, AlertBroadcast, Notification
-│   │   ├── tasks.py        # Celery task — TF-IDF + DBSCAN algorithm
+│   │   ├── tasks.py        # Celery task TF-IDF + DBSCAN algorithm
 │   │   ├── signals.py      # Triggers Celery task on new report
 │   │   ├── views.py        # Submit, verify, broadcast, notifications
 │   │   ├── serializers.py
@@ -210,7 +210,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 5. All protected endpoints require `Authorization: Bearer <access_token>` header
 6. Password reset via OTP with SHA-256 hashed reset token
 
-### Key Fields — User Model
+### Key Fields User Model
 
 ```python
 id            # UUID primary key
@@ -251,10 +251,10 @@ In the clustering algorithm, **Guides carry 1.5x trust weight** compared to Tour
 
 This is the heart of Global Mitra. The system uses **TF-IDF + DBSCAN** running asynchronously via **Celery** to intelligently cluster reports and detect genuine safety threats.
 
-### 8.1 How It Works — Full Pipeline
+### 8.1 How It Works Full Pipeline
 
 ```
-User submits report (POST /api/v1/reports/submit/)
+User submits report (POST /api/v1/reports/submit)
          │
          ▼
 IncidentReport saved to DB
@@ -304,16 +304,16 @@ Celery Worker picks up task
 TF-IDF converts text descriptions into numerical vectors. Words that appear frequently in incident reports but are rare in general language (e.g. "landslide", "flood", "blocked", "खतरा") receive high weight. Common English stop words are filtered out. Both single words and two-word phrases (bigrams) are extracted for richer context.
 
 **Why TF-IDF over BERT or other LLMs?**
-TF-IDF is computationally lightweight and runs in real-time without GPU resources. For domain-specific, keyword-driven incident detection, it is sufficient and fully interpretable — committee members can see exactly which keywords drove each clustering decision.
+TF-IDF is computationally lightweight and runs in real-time without GPU resources. For domain-specific, keyword-driven incident detection, it is sufficient and fully interpretable committee members can see exactly which keywords drove each clustering decision.
 
 ### 8.3 DBSCAN (Density-Based Spatial Clustering of Applications with Noise)
 
 DBSCAN groups reports that are both **geographically close** and **textually similar** into clusters. It requires no predefined number of clusters (unlike K-Means), making it ideal for real-time incident detection where the number of active incidents is unknown.
 
-**Critical advantage:** Reports that don't belong to any cluster are automatically labeled as **noise (label = -1)** and treated as potential false alarms. No additional false alarm logic is needed — DBSCAN handles it natively.
+**Critical advantage:** Reports that don't belong to any cluster are automatically labeled as **noise (label = -1)** and treated as potential false alarms. No additional false alarm logic is needed DBSCAN handles it natively.
 
 **Why DBSCAN over K-Means?**
-K-Means requires you to define K (number of clusters) upfront, which is impossible here. DBSCAN discovers clusters of arbitrary shape and size and naturally handles outliers — perfect for this use case.
+K-Means requires you to define K (number of clusters) upfront, which is impossible here. DBSCAN discovers clusters of arbitrary shape and size and naturally handles outliers perfect for this use case.
 
 ### 8.4 Confidence Scoring
 
@@ -330,12 +330,12 @@ where trust_weight:
 | Scenario | System Action | Admin Needed? |
 |---|---|---|
 | Single isolated report (noise) | Stored as PENDING, no alert | No |
-| Cluster with < 5 reports | Admin notified via DB notification | Yes — admin reviews |
-| Cluster with ≥ 5 reports | Alert auto-broadcast to all users | No — system handles it |
-| Admin confirms cluster manually | Alert broadcast with MANUAL trigger | Yes — admin action |
-| Admin rejects cluster | Reports marked REJECTED, reporters notified | Yes — admin action |
+| Cluster with < 5 reports | Admin notified via DB notification | Yes admin reviews |
+| Cluster with ≥ 5 reports | Alert auto-broadcast to all users | No system handles it |
+| Admin confirms cluster manually | Alert broadcast with MANUAL trigger | Yes admin action |
+| Admin rejects cluster | Reports marked REJECTED, reporters notified | Yes admin action |
 
-This tiered system solves the **"admin sleeping at midnight"** problem — high-confidence clusters broadcast automatically without human intervention.
+This tiered system solves the **"admin sleeping at midnight"** problem high-confidence clusters broadcast automatically without human intervention.
 
 ### 8.6 Models
 
@@ -389,7 +389,7 @@ permitsRequired, crowdLevel, internetAvailability
 
 ### Destination Comparison
 
-Users can compare two destinations side-by-side — showing difficulty, average cost, crowd level, safety level, best season, and activities in a parallel layout to help tourists make informed decisions.
+Users can compare two destinations side-by-side showing difficulty, average cost, crowd level, safety level, best season, and activities in a parallel layout to help tourists make informed decisions.
 
 ---
 
@@ -412,7 +412,7 @@ Global Mitra uses a **DB-based notification system** instead of Firebase FCM for
 | REPORT_VERIFIED | Admin confirms cluster | Report author |
 | REPORT_REJECTED | Admin rejects cluster | Report author |
 
-Frontend polls: `GET /api/v1/reports/notifications/` for unread count and content.
+Frontend polls: `GET /api/v1/reports/notifications` for unread count and content.
 
 ---
 
@@ -465,25 +465,25 @@ DBSCAN_MIN_SAMPLES = 3
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/v1/auth/register/` | Register new user |
-| POST | `/api/v1/auth/login/` | Login, returns JWT pair |
-| POST | `/api/v1/auth/token/refresh/` | Refresh access token |
-| POST | `/api/v1/auth/verify-otp/` | Verify email OTP |
-| POST | `/api/v1/auth/forgot-password/` | Send reset OTP to email |
-| POST | `/api/v1/auth/reset-password/` | Reset password with OTP token |
+| POST | `/api/v1/auth/register` | Register new user |
+| POST | `/api/v1/auth/login` | Login, returns JWT pair |
+| POST | `/api/v1/auth/token/refresh` | Refresh access token |
+| POST | `/api/v1/auth/verify-otp` | Verify email OTP |
+| POST | `/api/v1/auth/forgot-password` | Send reset OTP to email |
+| POST | `/api/v1/auth/reset-password` | Reset password with OTP token |
 
 ### Reports (Incident System)
 
 | Method | Endpoint | Role | Description |
 |---|---|---|---|
-| POST | `/api/v1/reports/submit/` | Tourist/Guide | Submit new incident report |
-| GET | `/api/v1/reports/my/` | Tourist/Guide | View own submitted reports |
-| GET | `/api/v1/reports/alerts/` | All | View active alert broadcasts |
-| GET | `/api/v1/reports/admin/clusters/` | Admin | View clusters pending review |
-| POST | `/api/v1/reports/admin/clusters/<id>/verify/` | Admin | Confirm or reject a cluster |
-| GET | `/api/v1/reports/admin/reports/` | Admin | View all reports with status filter |
-| GET | `/api/v1/reports/notifications/` | All | Fetch unread notifications |
-| POST | `/api/v1/reports/notifications/read/` | All | Mark all notifications as read |
+| POST | `/api/v1/reports/submit` | Tourist/Guide | Submit new incident report |
+| GET | `/api/v1/reports/my` | Tourist/Guide | View own submitted reports |
+| GET | `/api/v1/reports/alerts` | All | View active alert broadcasts |
+| GET | `/api/v1/reports/admin/clusters` | Admin | View clusters pending review |
+| POST | `/api/v1/reports/admin/clusters/<id>/verify` | Admin | Confirm or reject a cluster |
+| GET | `/api/v1/reports/admin/reports` | Admin | View all reports with status filter |
+| GET | `/api/v1/reports/notifications` | All | Fetch unread notifications |
+| POST | `/api/v1/reports/notifications/read` | All | Mark all notifications as read |
 
 ### API Documentation
 
@@ -520,7 +520,7 @@ The script creates reports with GPS coordinates clustered around real Nepal trek
 ### Current Limitations
 
 - Notifications are DB-based (polling); no real-time WebSocket push
-- TF-IDF does not handle Nepali language (Devanagari) — English descriptions only
+- TF-IDF does not handle Nepali language (Devanagari) English descriptions only
 - DBSCAN parameters (eps, min_samples) are fixed; not auto-tuned per area
 - No offline support for areas with poor internet connectivity
 - Destination data is seeded manually; no automated data pipeline
@@ -543,4 +543,4 @@ This project was developed as a Final Year Project. All rights reserved.
 
 ---
 
-*Built with Django, Celery, Redis, scikit-learn, and React — for the safety of Nepal's trekking community.*
+*Built with Django, Celery, Redis, scikit-learn, and React for the safety of Nepal's trekking community.*
