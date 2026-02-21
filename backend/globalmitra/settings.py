@@ -23,6 +23,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 APPEND_SLASH = False
 
 
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),      
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -55,17 +62,49 @@ INSTALLED_APPS = [
     
 ]
 
+# settings.py
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Vite default
+    "http://localhost:3000",  # React default
+]
+
+# Or for development only (not production):
+CORS_ALLOW_ALL_ORIGINS = True
+
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # must be at top
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    # 'corsheaders.middleware.CorsMiddleware',  # Uncomment if using CORS
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Kathmandu'
+
+
+INCIDENT_CLUSTER_WINDOW_HOURS = 1
+
+CLUSTER_MIN_REPORTS = 3
+
+CLUSTER_AUTO_BROADCAST_THRESHOLD = 5
+DBSCAN_EPS = 0.5        # max distance between reports to be in same cluster
+DBSCAN_MIN_SAMPLES = 3   # minimum reports to form a cluster
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+    }
+}
 
 ROOT_URLCONF = 'globalmitra.urls'
 

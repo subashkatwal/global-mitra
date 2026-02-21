@@ -5,11 +5,21 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from drf_spectacular.types import OpenApiTypes
-
+from rest_framework.parsers import MultiPartParser,FormParser
 from .models import Destination
 from .serializers import DestinationSerializer, DestinationListSerializer
 from .filters import DestinationFilter
 from globalmitra.permissions import IsAdminUser
+from destinations.serializers import (
+    DestinationSerializer,
+    DestinationListSerializer,
+  DestinationUploadSerializers,
+  DestinationFileUploadSerializer
+  )
+import json 
+import io
+import csv
+from django.db import transaction
 
 ALLOWED_ORDERING = {
     "name", "-name",
@@ -34,6 +44,7 @@ class DestinationListCreateView(GenericAPIView):
 
     @extend_schema(
         summary="List destinations",
+        auth=[],
         parameters=[
             OpenApiParameter("search",               OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False, description="Search name, description, climate, bestSeason, difficulty."),
             OpenApiParameter("ordering",             OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False, enum=sorted(ALLOWED_ORDERING)),
@@ -54,6 +65,7 @@ class DestinationListCreateView(GenericAPIView):
             OpenApiParameter("createdAt_before",     OpenApiTypes.DATETIME, OpenApiParameter.QUERY, required=False),
         ],
         responses={200: DestinationListSerializer(many=True)},
+        
     )
     def get(self, request):
         queryset = Destination.objects.all()
@@ -175,3 +187,95 @@ class DestinationDetailView(GenericAPIView):
             return Response({"error": "Destination not found."}, status=status.HTTP_404_NOT_FOUND)
         destination.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+@extend_schema(tags=["Destinations"])
+class DestinationBulkUpload(GenericAPIView):
+    permission_classes= [IsAdminUser]
+    serializer_class= DestinationFileUploadSerializer  
+    parser_classes = [MultiPartParser] 
+
+    @extend_schema(
+        summary="Bulk upload destinations via CSV or JSON file (admin only)",
+        request={
+            'multipart/form-data': {
+                'type': 'object',
+                'properties': {
+                    'file': {'type': 'string', 'format': 'binary'}
+                }
+            }
+        },
+        responses={
+            201: OpenApiResponse(description="Destinations uploaded successfully."),
+            400: OpenApiResponse(description="Validation error."),
+            403: OpenApiResponse(description="Admin access required."),
+        },
+    )
+
+    def post(self, request):
+        fileSerializer = DestinationFileUploadSerializer(data=request.data)
+        if not fileSerializer.is_valid():
+            return Response(fileSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        uploadedFile = request.FILES['file']
+        ext = uploadedFile.name.split('.')[-1].lower()
+
+        try:
+            rawData = self._parse_file(uploadedFile, ext)
+        except Exception as e:
+            return Response({"error": f"Failed to parse file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = DestinationUploadSerializers(data=rawData, many=True)
+        if not serializer.is_valid():
+            return Response(
+                {"error": "Validation failed.", "details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            created = []
+            for item in serializer.validated_data:
+                obj, _ = Destination.objects.update_or_create(
+                    slug=item['slug'],
+                    defaults=item
+                )
+                created.append(obj)
+
+        return Response(
+            {"message": f"{len(created)} destinations processed successfully."},
+            status=status.HTTP_201_CREATED
+        )
+
+    def _parse_file(self, uploadedFile, ext):
+        if ext == 'json':
+            return self._parse_json(uploadedFile)
+        return self._parse_csv(uploadedFile)
+    
+    def _parse_json(self,uploadedFile):
+        content= uploadedFile.read().decode('utf-8')
+        data = json.loads(content)
+        if not isinstance(data,list):
+            raise ValueError("JSON File must contains list of destinations.")
+        return data
+
+    def _parse_csv(self,uploadedFile):
+        content= uploadedFile.read().decode('utf-8')
+        reader = csv.DictReader(io.StringIO(content))
+        data = []
+        for row in reader:
+            for json_field in('famousLocalItems', 'activities'):
+                if json_field in row and isinstance(row[json_field], str):
+                    try:
+                        row[json_field] = json.loads(row[json_field])
+                    except json.JSONDecodeError:
+                        raise ValueError(f"Invalid JSON in column '{json_field}' at row: {row.get('name', '?')}")
+
+            if 'permitsRequired' in row:
+                row['permitsRequired'] = row['permitsRequired'].strip().lower() in ('true', '1', 'yes')
+
+            if row.get('altitude'):
+                row['altitude'] = int(row['altitude'])
+
+            data.append(dict(row))
+        return data
+

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Destination
-
+import json
 
 class DestinationListSerializer(serializers.ModelSerializer):
     """Lightweight serializer used in the paginated list response."""
@@ -118,4 +118,67 @@ class DestinationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Each item must be a string.")
         return value
     
+class DestinationUploadSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Destination
+        fields = [
+            'name', 'slug', 'description', 'latitude', 'longitude',
+            'averageCost', 'difficulty', 'bestSeason', 'duration',
+            'famousLocalItems', 'activities', 'altitude', 'climate',
+            'safetyLevel', 'permitsRequired', 'crowdLevel', 'internetAvailability'
+        ]
 
+    def validate_famousLocalItems(self, value):
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("Invalid JSON string for famousLocalItems.")
+        if not isinstance(value, list) or not all(isinstance(i, str) for i in value):
+            raise serializers.ValidationError("Must be a list of strings.")
+        return value
+
+    def validate_activities(self, value):
+        if isinstance(value, str):
+            try:
+                return json.loads(value)   
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("Invalid JSON string for activities.")
+        if not isinstance(value, list) or not all(isinstance(i, str) for i in value):
+            raise serializers.ValidationError("Must be a list of strings.")
+        return value
+
+    def validate_internetAvailability(self, value):
+        allowed = {"None", "Limited", "Moderate", "Good", "Excellent", "Very Limited", "No Internet"}
+        if value not in allowed:
+            raise serializers.ValidationError(f"Must be one of: {', '.join(sorted(allowed))}.")
+        return value
+
+    def validate_crowdLevel(self, value):
+        allowed = {"Low", "Medium", "High", "Very Low", "Moderate"}
+        if value not in allowed:
+            raise serializers.ValidationError(f"Must be one of: {', '.join(sorted(allowed))}.")
+        return value
+
+    def validate_safetyLevel(self, value):
+        if value is None:
+            return value
+        allowed = {"Safe", "Moderate", "Dangerous", "Low"} 
+        if value not in allowed:
+            raise serializers.ValidationError(f"Must be one of: {', '.join(sorted(allowed))}.")
+        return value
+
+    validate_latitude = DestinationSerializer.validate_latitude
+    validate_longitude = DestinationSerializer.validate_longitude
+    validate_averageCost = DestinationSerializer.validate_averageCost
+    validate_difficulty = DestinationSerializer.validate_difficulty
+
+
+class DestinationFileUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
+
+    def validate_file(self, value):
+        ext = value.name.split('.')[-1].lower()
+        if ext not in ('csv', 'json'):
+            raise serializers.ValidationError("Only CSV and JSON files are supported.")
+        return value
