@@ -35,7 +35,8 @@ import AdminDashboardPage       from '@/components/AdminDashboard';
 export type View =
   | 'home' | 'explore' | 'destination' | 'community'
   | 'profile' | 'guide' | 'dashboard'
-  | 'admin'                             
+  | 'admin'  
+  | 'compare'                           
   | 'notifications' | 'report';
 
 function App() {

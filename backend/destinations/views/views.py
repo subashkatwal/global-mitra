@@ -9,9 +9,9 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiRespon
 from drf_spectacular.types import OpenApiTypes
 
 from globalmitra.permissions import IsAdminUser
-from .models import Destination
-from .filters import DestinationFilter
-from destinations.serializers import (
+from ..models import Destination
+from ..filters import DestinationFilter
+from destinations.serializers.serializers import (
     DestinationSerializer,
     DestinationListSerializer,
     DestinationUploadSerializers,

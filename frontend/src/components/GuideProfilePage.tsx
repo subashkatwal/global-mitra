@@ -3,28 +3,35 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, ChevronLeft, BadgeCheck, Clock,
   Loader2, AlertCircle, CheckCircle, Save, X,
-  Lock, Mail, Phone, LayoutDashboard
+  Lock, Mail, Phone, LayoutDashboard, MapPin
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { apiFetch } from '@/services/api';
 import { AvatarUpload } from '@/components/AvatarUpload';
 import { GuideDashboardPage } from '@/components/GuideDashboardPage';
 
+// Exact API shape from your response
+interface ApiUser {
+  id: string;
+  email: string;
+  fullName: string;
+  phoneNumber: string | null;
+  photo: string | null;     // full URL e.g. http://localhost:8005/media/...
+  address: string | null;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface GuideData {
   id: string;
+  user: ApiUser;
   licenseNumber: string;
   licenseIssuedBy: string;
   verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
   bio: string;
   createdAt: string;
   updatedAt: string;
-  user?: {
-    fullName: string;
-    email: string;
-    photo: string | null;
-    phoneNumber: string | null;
-    address: string | null;
-  };
 }
 
 function parseError(err: any): string {
@@ -42,10 +49,37 @@ function parseError(err: any): string {
   return err?.message || 'Something went wrong.';
 }
 
+// Unwraps any of these shapes:
+//   { success, data: { id, user, licenseNumber, ... } }  ← your API
+//   { id, user, licenseNumber, ... }                      ← if apiFetch unwraps
+//   { guide: { ... } }                                    ← alternative key
+function unwrapGuide(raw: any): GuideData | null {
+  if (!raw) return null;
+  // Try every known envelope layer
+  const candidates = [
+    raw?.data,
+    raw?.guide,
+    raw?.result,
+    raw,
+  ];
+  for (const g of candidates) {
+    // A valid guide object must have id AND a nested user object
+    if (g && typeof g === 'object' && g.id && g.user) {
+      return g as GuideData;
+    }
+  }
+  // Last resort: if raw has id but no user, it might be a flat user response
+  if (raw?.id && raw?.licenseNumber !== undefined) {
+    return raw as GuideData;
+  }
+  console.warn('[unwrapGuide] could not find guide in response:', raw);
+  return null;
+}
+
 const STATUS_CONFIG = {
-  PENDING:  { label: 'Pending Review', bg: 'bg-amber-50',       border: 'border-amber-200',    text: 'text-amber-700',  dot: 'bg-amber-400',  icon: Clock      },
-  VERIFIED: { label: 'Verified Guide', bg: 'bg-[#D0F0E4]',      border: 'border-[#A8DFC8]',    text: 'text-[#1A3D2B]',  dot: 'bg-[#3CA37A]', icon: BadgeCheck  },
-  REJECTED: { label: 'Not Approved',  bg: 'bg-red-50',          border: 'border-red-200',      text: 'text-red-700',    dot: 'bg-red-400',   icon: X           },
+  PENDING:  { label: 'Pending Review', bg: 'bg-amber-50',  border: 'border-amber-200', text: 'text-amber-700',  dot: 'bg-amber-400',  icon: Clock      },
+  VERIFIED: { label: 'Verified Guide', bg: 'bg-[#D0F0E4]', border: 'border-[#A8DFC8]', text: 'text-[#1A3D2B]',  dot: 'bg-[#3CA37A]', icon: BadgeCheck  },
+  REJECTED: { label: 'Not Approved',  bg: 'bg-red-50',     border: 'border-red-200',   text: 'text-red-700',    dot: 'bg-red-400',   icon: X           },
 };
 
 interface GuideProfilePageProps {
@@ -56,25 +90,21 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
   const authUser = useAuthStore((s) => s.user);
   const setUser  = useAuthStore((s) => s.setUser);
 
-  const [guide,     setGuide]     = useState<GuideData | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [fetchErr,  setFetchErr]  = useState('');
-  const [toast,     setToast]     = useState('');
-  const [photoUrl,  setPhotoUrl]  = useState<string | null>(null);
-
-  // ── NEW: show dashboard inline ──
+  const [guide,         setGuide]         = useState<GuideData | null>(null);
+  const [loading,       setLoading]       = useState(true);
+  const [fetchErr,      setFetchErr]      = useState('');
+  const [toast,         setToast]         = useState('');
+  const [photoUrl,      setPhotoUrl]      = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
 
-  // edit state
   const [editing,       setEditing]       = useState(false);
   const [saving,        setSaving]        = useState(false);
   const [editErr,       setEditErr]       = useState('');
   const [draftFullName, setDraftFullName] = useState('');
   const [draftPhone,    setDraftPhone]    = useState('');
+  const [draftAddress,  setDraftAddress]  = useState('');
   const [draftBio,      setDraftBio]      = useState('');
-  const [draftIssuedBy, setDraftIssuedBy] = useState('');
 
-  // ── Guard ──────────────────────────────────────────────────────────────────
   if (authUser?.role !== 'GUIDE') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-3">
@@ -84,13 +114,17 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
     );
   }
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       setLoading(true); setFetchErr('');
       try {
-        const res = await apiFetch('/profile/guides/me') as any;
-        const g   = res?.data ?? res;
+        const raw = await apiFetch('/profile/guides/me') as any;
+        if (import.meta.env.DEV) console.log('[GuideProfilePage] raw:', raw);
+        const g = unwrapGuide(raw);
+        if (!g) {
+          console.error('[GuideProfilePage] unwrapGuide returned null. Raw response:', raw);
+          throw new Error('Could not parse guide data from server response.');
+        }
         setGuide(g);
         setPhotoUrl(g.user?.photo ?? null);
         resetDrafts(g);
@@ -102,98 +136,79 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
   }, []);
 
   const resetDrafts = (g: GuideData) => {
-    setDraftFullName(g.user?.fullName ?? '');
-    setDraftPhone(g.user?.phoneNumber ?? '');
-    setDraftBio(g.bio ?? '');
-    setDraftIssuedBy(g.licenseIssuedBy ?? '');
+    setDraftFullName(g.user?.fullName    ?? '');
+    setDraftPhone(   g.user?.phoneNumber ?? '');
+    setDraftAddress( g.user?.address     ?? '');
+    setDraftBio(     g.bio               ?? '');
   };
 
-  const flash = (msg: string) => {
-    setToast(msg); setTimeout(() => setToast(''), 2500);
-  };
+  const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
-  // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = async () => {
-    setSaving(true);
-    setEditErr('');
+    setSaving(true); setEditErr('');
     try {
       const payload: Record<string, any> = {};
-      if (draftBio.trim() && draftBio.trim() !== guide?.bio)
-        payload.bio = draftBio.trim();
-      if (draftIssuedBy.trim() && draftIssuedBy.trim() !== guide?.licenseIssuedBy)
-        payload.licenseIssuedBy = draftIssuedBy.trim();
-      if (draftFullName.trim() && draftFullName.trim() !== guide?.user?.fullName)
-        payload.fullName = draftFullName.trim();
-      if (draftPhone.trim() && draftPhone.trim() !== guide?.user?.phoneNumber)
-        payload.phoneNumber = draftPhone.trim();
+      if (draftBio.trim()      !== (guide?.bio                 ?? '')) payload.bio         = draftBio.trim();
+      if (draftFullName.trim() !== (guide?.user?.fullName      ?? '')) payload.fullName    = draftFullName.trim();
+      if (draftPhone.trim()    !== (guide?.user?.phoneNumber   ?? '')) payload.phoneNumber = draftPhone.trim();
+      if (draftAddress.trim()  !== (guide?.user?.address       ?? '')) payload.address     = draftAddress.trim();
 
-      if (Object.keys(payload).length === 0) {
-        flash('Nothing to save.');
-        setEditing(false);
-        return;
-      }
+      if (Object.keys(payload).length === 0) { flash('Nothing to save.'); setEditing(false); return; }
 
-      const res = await apiFetch('/profile/guides/me', {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
+      const raw = await apiFetch('/profile/guides/me', {
+        method: 'PATCH', body: JSON.stringify(payload),
       }) as any;
+      const updated = unwrapGuide(raw);
+      if (!updated) {
+          console.warn('[GuideProfilePage] PATCH response could not be parsed, re-fetching...');
+          // Re-fetch to get fresh data instead of crashing
+          const refetch = await apiFetch('/profile/guides/me') as any;
+          const refetched = unwrapGuide(refetch);
+          if (refetched) {
+            setGuide(refetched);
+            if (refetched.user?.photo) setPhotoUrl(refetched.user.photo);
+          }
+          setEditing(false); flash('Profile updated!');
+          return;
+        }
 
-      const updatedGuide = res?.data ?? res?.guide ?? res;
-      setGuide((prev) =>
-        prev ? { ...prev, ...updatedGuide, user: { ...prev.user!, ...updatedGuide.user } } : null
-      );
+      setGuide((prev) => prev ? { ...prev, ...updated, user: { ...prev.user, ...updated.user } } : null);
+      if (updated.user?.photo) setPhotoUrl(updated.user.photo);
+
+      // Sync to authStore so Navbar reflects changes
       if (authUser) {
-        setUser({
+        (setUser as any)({
           ...authUser,
-          fullName: updatedGuide.user?.fullName ?? authUser.fullName,
-          phoneNumber: updatedGuide.user?.phoneNumber ?? authUser.phoneNumber,
-          photo: updatedGuide.user?.photo ?? authUser.photo,
+          fullName:    updated.user?.fullName    ?? authUser.fullName,
+          photo:       updated.user?.photo       ?? authUser.photo,
+          phoneNumber: updated.user?.phoneNumber,
+          address:     updated.user?.address,
         });
       }
-      setEditing(false);
-      flash('Profile updated!');
-    } catch (e: any) {
-      setEditErr(parseError(e));
-    } finally {
-      setSaving(false);
-    }
+      setEditing(false); flash('Profile updated!');
+    } catch (e: any) { setEditErr(parseError(e)); }
+    finally { setSaving(false); }
   };
 
-  const handleCancel = () => {
-    if (guide) resetDrafts(guide);
-    setEditing(false); setEditErr('');
-  };
+  const handleCancel = () => { if (guide) resetDrafts(guide); setEditing(false); setEditErr(''); };
 
-  const inputCls = `w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900
-    bg-white focus:outline-none focus:border-[#3CA37A] focus:ring-2 focus:ring-[#3CA37A]/20
-    shadow-[inset_0_1px_3px_rgba(0,0,0,0.05)] transition-all placeholder-gray-400`;
+  const inputCls = 'w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 bg-white focus:outline-none focus:border-[#3CA37A] focus:ring-2 focus:ring-[#3CA37A]/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.05)] transition-all placeholder-gray-400';
+  const readonlyCls = 'w-full px-4 py-3 rounded-xl border border-gray-100 text-sm text-gray-500 bg-gray-50 cursor-not-allowed font-mono';
 
-  const readonlyCls = `w-full px-4 py-3 rounded-xl border border-gray-100 text-sm
-    text-gray-500 bg-gray-50 cursor-not-allowed font-mono`;
-
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-[70vh]">
-      <Loader2 className="w-7 h-7 animate-spin text-[#3CA37A]" />
-    </div>
-  );
-
-  if (fetchErr) return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] gap-3">
-      <AlertCircle className="w-10 h-10 text-red-400" />
-      <p className="text-gray-500 text-sm">{fetchErr}</p>
-    </div>
-  );
-
+  if (loading) return <div className="flex items-center justify-center min-h-[70vh]"><Loader2 className="w-7 h-7 animate-spin text-[#3CA37A]" /></div>;
+  if (fetchErr) return <div className="flex flex-col items-center justify-center min-h-[70vh] gap-3"><AlertCircle className="w-10 h-10 text-red-400" /><p className="text-gray-500 text-sm">{fetchErr}</p></div>;
   if (!guide) return null;
 
-  const sc = STATUS_CONFIG[guide.verificationStatus] ?? STATUS_CONFIG.PENDING;
-  const fullName = guide.user?.fullName ?? authUser?.fullName ?? 'G';
+  const sc            = STATUS_CONFIG[guide.verificationStatus] ?? STATUS_CONFIG.PENDING;
+  const fullName      = guide.user?.fullName ?? authUser?.fullName ?? 'G';
+  // API returns a full URL already — use directly (no resolving needed)
+  const resolvedPhoto = photoUrl;
 
-  // ── If dashboard is open, render it inline with a back button ──────────────
+  // ── Dashboard: single back button here, no duplicate inside dashboard ──────
   if (showDashboard) {
     return (
-      <div className="min-h-screen bg-[#F0FBF5] pt-[68px]">
-        <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="min-h-screen bg-[#F2F5F3] pt-[68px]">
+        <div className="max-w-2xl mx-auto px-4 pt-6 pb-0">
           <button
             onClick={() => setShowDashboard(false)}
             className="flex items-center gap-1.5 text-sm font-semibold text-[#3CA37A] hover:text-[#2D8F6A] transition-colors mb-4"
@@ -201,18 +216,18 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
             <ChevronLeft className="w-4 h-4" /> Back to Profile
           </button>
         </div>
-        {/* Render dashboard content — pass a no-op onNavigate for internal dashboard nav */}
-        <GuideDashboardPage onNavigate={(view: string) => {
-          if (view === 'guide') setShowDashboard(false);
-          else onNavigate(view);
-        }} />
+        <GuideDashboardPage
+          onNavigate={(view: string) => {
+            if (view === 'guide') setShowDashboard(false);
+            else onNavigate(view);
+          }}
+        />
       </div>
     );
   }
 
   return (
     <>
-      {/* Toast */}
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -225,69 +240,58 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
       </AnimatePresence>
 
       <div className="min-h-screen bg-[#F0FBF5] pt-[68px]">
-        <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
 
-          {/* Back */}
           <button onClick={() => onNavigate('profile')}
             className="flex items-center gap-1.5 text-sm font-semibold text-[#3CA37A] hover:text-[#2D8F6A] transition-colors">
             <ChevronLeft className="w-4 h-4" /> Back to Profile
           </button>
 
-          {/* ── Profile Header Card ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6"
-          >
+          {/* Header card */}
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-start gap-5">
-
-              {/* Avatar with gallery upload */}
               <AvatarUpload
-                photoUrl={photoUrl}
+                photoUrl={resolvedPhoto}
                 fullName={fullName}
                 size={88}
                 onUploaded={async (url) => {
                   setPhotoUrl(url);
                   try {
-                    await apiFetch('/profile/guides/me', {
-                      method: 'PATCH',
-                      body: JSON.stringify({ photo: url }),
-                    });
-                    setGuide((prev) =>
-                      prev ? { ...prev, user: { ...prev.user!, photo: url } } : prev
-                    );
-                    if (authUser) setUser({ ...authUser, photo: url });
+                    const raw = await apiFetch('/profile/guides/me', {
+                      method: 'PATCH', body: JSON.stringify({ photo: url }),
+                    }) as any;
+                    const updated    = unwrapGuide(raw);
+                    const savedPhoto = updated?.user?.photo ?? url;
+                    setGuide((prev) => prev ? { ...prev, user: { ...prev.user, photo: savedPhoto } } : prev);
+                    setPhotoUrl(savedPhoto);
+                    if (authUser) (setUser as any)({ ...authUser, photo: savedPhoto });
                     flash('Photo updated!');
-                  } catch (err: any) {
-                    flash('Failed to save photo.');
-                    console.error(err);
-                  }
+                  } catch (err: any) { flash('Failed to save photo.'); console.error(err); }
                 }}
               />
 
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl sm:text-2xl font-bold text-[#1A3D2B]">{fullName}</h1>
                 <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
-                  <Mail className="w-3.5 h-3.5" />
-                  {guide.user?.email ?? authUser?.email}
+                  <Mail className="w-3.5 h-3.5" />{guide.user?.email ?? authUser?.email}
                 </p>
                 <div className="flex flex-wrap items-center gap-2 mt-2.5">
                   <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#D0F0E4] text-[#1A3D2B]">
                     <Shield className="w-3 h-3" /> Guide
                   </span>
                   <span className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${sc.bg} ${sc.border} ${sc.text}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
-                    {sc.label}
+                    <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />{sc.label}
                   </span>
                 </div>
                 {guide.user?.phoneNumber && (
-                  <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-1.5">
-                    <Phone className="w-3 h-3" /> {guide.user.phoneNumber}
-                  </p>
+                  <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-1.5"><Phone className="w-3 h-3" />{guide.user.phoneNumber}</p>
+                )}
+                {guide.user?.address && (
+                  <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-1"><MapPin className="w-3 h-3" />{guide.user.address}</p>
                 )}
               </div>
 
-              {/* Edit / Cancel + Dashboard buttons */}
               <div className="flex flex-col gap-2 flex-shrink-0">
                 {!editing ? (
                   <button onClick={() => setEditing(true)}
@@ -300,19 +304,15 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
                     <X className="w-3.5 h-3.5" /> Cancel
                   </button>
                 )}
-
-                {/* ── Dashboard button ── */}
-                <button
-                  onClick={() => setShowDashboard(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3CA37A] text-white text-sm font-semibold hover:bg-[#2D8F6A] transition-colors shadow-sm"
-                >
+                <button onClick={() => setShowDashboard(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3CA37A] text-white text-sm font-semibold hover:bg-[#2D8F6A] transition-colors shadow-sm">
                   <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
                 </button>
               </div>
             </div>
           </motion.div>
 
-          {/* ── Edit Form ── */}
+          {/* Edit Form */}
           <AnimatePresence>
             {editing && (
               <motion.div
@@ -321,36 +321,30 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6"
               >
                 <h2 className="text-base font-bold text-[#1A3D2B] mb-5">Edit Profile</h2>
-
                 {editErr && (
                   <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {editErr}
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />{editErr}
                   </div>
                 )}
-
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-                    <input value={draftFullName} onChange={(e) => setDraftFullName(e.target.value)}
-                      placeholder="Your full name" className={inputCls} />
+                    <input value={draftFullName} onChange={(e) => setDraftFullName(e.target.value)} placeholder="Your full name" className={inputCls} />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
-                    <input value={draftPhone} onChange={(e) => setDraftPhone(e.target.value)}
-                      placeholder="98XXXXXXXX" type="tel" className={inputCls} />
+                    <input value={draftPhone} onChange={(e) => setDraftPhone(e.target.value)} placeholder="98XXXXXXXX" type="tel" className={inputCls} />
                   </div>
-
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Address</label>
+                    <input value={draftAddress} onChange={(e) => setDraftAddress(e.target.value)} placeholder="Kathmandu, Nepal" className={inputCls} />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Bio</label>
-                    <textarea
-                      value={draftBio} onChange={(e) => setDraftBio(e.target.value)}
-                      rows={4} maxLength={500} placeholder="Explorer and adventure enthusiast..."
-                      className={inputCls + ' resize-none'}
-                    />
+                    <textarea value={draftBio} onChange={(e) => setDraftBio(e.target.value)} rows={4} maxLength={500}
+                      placeholder="Explorer and adventure enthusiast..." className={inputCls + ' resize-none'} />
                     <p className="text-xs text-gray-400 text-right mt-1">{draftBio.length}/500</p>
                   </div>
-
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
                       License Number
@@ -358,16 +352,12 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
                         <Lock className="w-2.5 h-2.5" /> READ ONLY
                       </span>
                     </label>
-                    <input value={guide.licenseNumber} readOnly className={readonlyCls} />
+                    <input value={guide.licenseNumber || '—'} readOnly className={readonlyCls} />
                     <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      To update, email{' '}
-                      <a href="mailto:support@globalmitra.com" className="text-[#3CA37A] hover:underline font-medium ml-0.5">
-                        support@globalmitra.com
-                      </a>
+                      <Mail className="w-3 h-3" />To update, email{' '}
+                      <a href="mailto:support@globalmitra.com" className="text-[#3CA37A] hover:underline font-medium ml-0.5">support@globalmitra.com</a>
                     </p>
                   </div>
-
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
                       License Issued By
@@ -375,22 +365,14 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
                         <Lock className="w-2.5 h-2.5" /> READ ONLY
                       </span>
                     </label>
-                    <input
-                      value={draftIssuedBy}
-                      readOnly
-                      placeholder="Nepal Tourism Board"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-100 text-sm text-gray-500 bg-gray-50 cursor-not-allowed"
-                    />
+                    <input value={guide.licenseIssuedBy || '—'} readOnly
+                      className="w-full px-4 py-3 rounded-xl border border-gray-100 text-sm text-gray-500 bg-gray-50 cursor-not-allowed" />
                     <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      To update, email{' '}
-                      <a href="mailto:support@globalmitra.com" className="text-[#3CA37A] hover:underline font-medium ml-0.5">
-                        support@globalmitra.com
-                      </a>
+                      <Mail className="w-3 h-3" />To update, email{' '}
+                      <a href="mailto:support@globalmitra.com" className="text-[#3CA37A] hover:underline font-medium ml-0.5">support@globalmitra.com</a>
                     </p>
                   </div>
                 </div>
-
                 <div className="flex gap-3 mt-6">
                   <button onClick={handleSave} disabled={saving}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[#3CA37A] hover:bg-[#2D8F6A] text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
@@ -406,11 +388,9 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
             )}
           </AnimatePresence>
 
-          {/* ── Stats row ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
-            className="grid grid-cols-3 gap-3"
-          >
+          {/* Stats */}
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+            className="grid grid-cols-3 gap-3">
             {[
               { label: 'Reports Submitted', value: '12' },
               { label: 'Places Visited',    value: '28' },
@@ -423,12 +403,10 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
             ))}
           </motion.div>
 
-          {/* ── License info card (view mode only) ── */}
+          {/* License card */}
           {!editing && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
-            >
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
                 <Shield className="w-4 h-4 text-[#3CA37A]" />
                 <h2 className="text-sm font-bold text-[#1A3D2B]">License & Verification</h2>
@@ -436,17 +414,20 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
               <div className="divide-y divide-gray-50">
                 <div className="flex items-center justify-between px-5 py-3.5">
                   <span className="text-sm text-gray-500">License Number</span>
-                  <span className="text-sm font-mono font-semibold text-gray-800">{guide.licenseNumber}</span>
+                  {guide.licenseNumber
+                    ? <span className="text-sm font-mono font-semibold text-gray-800">{guide.licenseNumber}</span>
+                    : <span className="text-xs italic text-gray-400">Not provided</span>}
                 </div>
                 <div className="flex items-center justify-between px-5 py-3.5">
                   <span className="text-sm text-gray-500">Issued By</span>
-                  <span className="text-sm font-semibold text-gray-800">{guide.licenseIssuedBy}</span>
+                  {guide.licenseIssuedBy
+                    ? <span className="text-sm font-semibold text-gray-800">{guide.licenseIssuedBy}</span>
+                    : <span className="text-xs italic text-gray-400">Not provided</span>}
                 </div>
                 <div className="flex items-center justify-between px-5 py-3.5">
                   <span className="text-sm text-gray-500">Status</span>
                   <span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${sc.bg} ${sc.border} ${sc.text}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
-                    {sc.label}
+                    <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />{sc.label}
                   </span>
                 </div>
                 {guide.bio && (

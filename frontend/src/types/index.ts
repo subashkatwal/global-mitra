@@ -10,9 +10,10 @@ export interface User {
   isVerified: boolean;
   isActive: boolean;
   photo?: string;
-  phoneNumber?: string;
   createdAt: string;
   updatedAt: string;
+  phoneNumber?: string | null;  
+  address?: string | null; 
 }
 
 export interface GuideProfile {
@@ -55,6 +56,7 @@ export interface Destination {
   images?: string[];
   createdAt: string;
   updatedAt: string;
+  
 }
 
 // Post types
@@ -103,7 +105,7 @@ export interface Report {
 }
 
 // View types
-export type View = 'home' | 'explore' | 'place' | 'community' | 'profile' | 'guide' | 'notifications' | 'report' | 'admin';
+export type View = 'home' | 'explore' | 'place' | 'community' | 'profile' | 'guide' | 'notifications' | 'report' | 'admin' | 'compare';
 
 // API Response types
 export interface ApiResponse<T> {

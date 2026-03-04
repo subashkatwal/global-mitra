@@ -6,9 +6,10 @@ export interface User {
   email: string;
   role: string;
   isVerified: boolean;
-  phoneNumber?: string;
   createdAt: string;
   photo?: string;
+  phoneNumber?: string | null;   
+  address?: string | null; 
 }
 
 export interface Guide {
@@ -19,10 +20,13 @@ export interface Guide {
   bio?: string;
   createdAt: string;
   user?: {
+    id:  string; 
     fullName: string;
     email: string;
     photo?: string;
+    phoneNumber?: string;
   };
+
 }
 
 export interface Post {
@@ -43,6 +47,10 @@ export interface Report {
 }
 
 export interface Destination {
+  slug: any;
+  crowdLevel: any;
+  safetyLevel: any;
+  image: any;
   id: string;
   name: string;
   district: string;

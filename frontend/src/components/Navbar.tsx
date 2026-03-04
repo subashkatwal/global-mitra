@@ -25,7 +25,11 @@ export function Navbar({
   const [isScrolled,       setIsScrolled]       = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [logoutToast,      setLogoutToast]      = useState(false);
-  const { isAuthenticated, user, logout } = useAuthStore();
+
+  // Subscribe to user as a selector — any setUser() call re-renders Navbar
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user            = useAuthStore((s) => s.user);
+  const logout          = useAuthStore((s) => s.logout);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 80);
@@ -49,16 +53,17 @@ export function Navbar({
   const isGuide = user?.role === 'GUIDE';
   const isAdmin = user?.role === 'ADMIN';
 
-  // Avatar click → role-specific page. Admin NOT in nav links.
   const profileView: View = isAdmin ? 'admin' : isGuide ? 'guide' : 'profile';
   const isOnProfileView   = currentView === 'profile' || currentView === 'guide' || currentView === 'admin';
   const roleLabel         = isAdmin ? 'Admin' : isGuide ? 'Guide' : null;
 
-  // Fixed 3 links for everyone — no Admin link
-  const navLinks = [
-    { id: 'home'      as View, label: 'Home',      icon: Home   },
-    { id: 'explore'   as View, label: 'Explore',   icon: MapPin },
-    { id: 'community' as View, label: 'Community', icon: Users  },
+  // Now that 'compare' is in the View union, this comparison is valid
+  const isOnCompare = currentView === 'compare';
+
+  const navLinks: { id: View; label: string; icon: React.ElementType }[] = [
+    { id: 'home',      label: 'Home',      icon: Home   },
+    { id: 'explore',   label: 'Explore',   icon: MapPin },
+    { id: 'community', label: 'Community', icon: Users  },
   ];
 
   return (
@@ -101,7 +106,7 @@ export function Navbar({
               <span className="font-heading font-bold text-[15px] sm:text-[17px] text-[#1A3D2B] tracking-tight">Global Mitra</span>
             </motion.button>
 
-            {/* Center nav — 3 links for everyone, no Admin */}
+            {/* Center nav */}
             <div className="hidden lg:flex items-center gap-0.5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               {navLinks.map((link, i) => {
                 const Icon = link.icon;
@@ -118,7 +123,7 @@ export function Navbar({
                 );
               })}
               <motion.button initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                onClick={() => onNavigate('report' as View)}
+                onClick={() => onNavigate('report')}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-semibold text-[#E63946] hover:bg-red-50 transition-all duration-200 whitespace-nowrap">
                 <AlertTriangle className="w-[14px] h-[14px]" />Report
               </motion.button>
@@ -127,10 +132,14 @@ export function Navbar({
             {/* Right side */}
             <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
 
-              {/* Compare */}
+              {/* Compare button — navigates to 'compare' view via onComparisonClick */}
               <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
                 onClick={onComparisonClick}
-                className="hidden xl:flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#F0FBF5] border border-[#A8DFC8] text-[#1A3D2B] text-[12px] font-semibold hover:bg-[#D0F0E4] transition-colors relative whitespace-nowrap">
+                className={`hidden xl:flex items-center gap-1.5 px-3 py-2 rounded-lg border text-[12px] font-semibold transition-colors relative whitespace-nowrap ${
+                  isOnCompare
+                    ? 'bg-[#3CA37A] border-[#3CA37A] text-white'
+                    : 'bg-[#F0FBF5] border-[#A8DFC8] text-[#1A3D2B] hover:bg-[#D0F0E4]'
+                }`}>
                 <BarChart3 className="w-[14px] h-[14px]" />Compare
                 {comparisonCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#3CA37A] text-white text-[10px] rounded-full flex items-center justify-center font-bold">
@@ -149,12 +158,6 @@ export function Navbar({
 
               {isAuthenticated ? (
                 <div className="flex items-center gap-1.5">
-                  {/*
-                    Single avatar pill — Admin link removed from nav.
-                    Admin  → avatar click → 'admin'
-                    Guide  → avatar click → 'guide'
-                    Tourist → avatar click → 'profile'
-                  */}
                   <button
                     onClick={() => onNavigate(profileView)}
                     title={isAdmin ? 'Admin dashboard' : isGuide ? 'Guide profile' : 'My profile'}
@@ -165,13 +168,18 @@ export function Navbar({
                     }`}
                   >
                     {resolvedPhoto ? (
-                      <img src={resolvedPhoto} alt={user?.fullName ?? 'Profile'}
+                      // key={resolvedPhoto} forces img remount when URL changes → no stale cache
+                      <img
+                        key={resolvedPhoto}
+                        src={resolvedPhoto}
+                        alt={user?.fullName ?? 'Profile'}
                         className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover ring-1 ring-[#3CA37A]/20"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
                           const sib = e.currentTarget.nextElementSibling as HTMLElement | null;
                           if (sib) sib.style.display = 'flex';
-                        }} />
+                        }}
+                      />
                     ) : null}
                     <div
                       className="w-6 h-6 sm:w-7 sm:h-7 rounded-full gradient-primary flex items-center justify-center text-white font-bold text-xs"
@@ -193,7 +201,6 @@ export function Navbar({
                     </div>
                   </button>
 
-                  {/* Logout */}
                   <button onClick={handleLogout}
                     className="p-1.5 sm:p-2 rounded-lg hover:bg-red-50 transition-colors group" title="Sign out">
                     <LogOut className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-[#4A7A62] group-hover:text-red-500 transition-colors" />
@@ -216,7 +223,6 @@ export function Navbar({
                 </div>
               )}
 
-              {/* Hamburger */}
               <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className="lg:hidden p-2 rounded-lg hover:bg-[#D0F0E4] transition-colors ml-0.5">
                 {isMobileMenuOpen ? <X className="w-5 h-5 text-[#1A3D2B]" /> : <Menu className="w-5 h-5 text-[#1A3D2B]" />}
@@ -246,13 +252,15 @@ export function Navbar({
                     </button>
                   );
                 })}
-                <button onClick={() => { onNavigate('report' as View); setIsMobileMenuOpen(false); }}
+                <button onClick={() => { onNavigate('report'); setIsMobileMenuOpen(false); }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-[#E63946] hover:bg-red-50">
                   <AlertTriangle className="w-4 h-4" />Report Incidents
                 </button>
                 <button onClick={() => { onComparisonClick(); setIsMobileMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-[#1A3D2B] hover:bg-[#D0F0E4]">
-                  <BarChart3 className="w-4 h-4" />Compare
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                    isOnCompare ? 'bg-[#3CA37A] text-white' : 'text-[#1A3D2B] hover:bg-[#D0F0E4]'
+                  }`}>
+                  <BarChart3 className="w-4 h-4" />Compare Destinations
                   {comparisonCount > 0 && (
                     <span className="ml-auto w-5 h-5 bg-[#3CA37A] text-white text-[10px] rounded-full flex items-center justify-center font-bold">
                       {comparisonCount}
@@ -266,7 +274,7 @@ export function Navbar({
                       isOnProfileView ? 'bg-[#3CA37A] text-white' : 'text-[#1A3D2B] hover:bg-[#D0F0E4]'
                     }`}>
                     {resolvedPhoto
-                      ? <img src={resolvedPhoto} alt="" className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                      ? <img key={resolvedPhoto} src={resolvedPhoto} alt="" className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
                       : <div className="w-5 h-5 rounded-full gradient-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                           {user?.fullName?.charAt(0)?.toUpperCase() ?? 'U'}
                         </div>
