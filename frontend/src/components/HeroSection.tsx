@@ -269,7 +269,7 @@ export function HeroSection({ onExploreClick, onPlaceClick }: HeroSectionProps) 
   );
 }
 
-// ── Floating card sub-component ───────────────────────────────────────────────
+//  Floating card sub-component 
 
 function FloatingCard({
   dest, index, positionClass, onClick,
@@ -313,7 +313,7 @@ function FloatingCard({
           <h3 className="font-bold text-[#2C3E50] mb-1 text-sm xl:text-base truncate">{dest.name}</h3>
           <p className="text-xs xl:text-sm text-[#7F8C8D] flex items-center gap-1 mb-2">
             <MapPin className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{dest.difficulty} · ${Math.round(dest.averageCost)}/day</span>
+            <span className="truncate">{dest.difficulty} · Rs {Math.round(dest.averageCost)}/day</span>
           </p>
           <div className="flex items-center gap-1.5">
             <Star className="w-3.5 h-3.5 xl:w-4 xl:h-4 text-[#F7B801] fill-[#F7B801]" />
