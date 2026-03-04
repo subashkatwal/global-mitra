@@ -1,0 +1,1072 @@
+[
+  {
+    "name": "Phewa Lake",
+    "slug": "phewa-lake",
+    "description": "Picturesque lake in Pokhara with stunning views of Machhapuchhre (Fishtail) mountain and peaceful boating.",
+    "latitude": 28.215,
+    "longitude": 83.958,
+    "averageCost": 400.0,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "3 days",
+    "famousLocalItems": [
+      "Boating",
+      "Tal Barahi Temple visit",
+      "Sunset views"
+    ],
+    "activities": [
+      "Boating",
+      "Hiking around lake",
+      "Paragliding nearby",
+      "Cafe hopping"
+    ],
+    "altitude": 827,
+    "climate": "Subtropical",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Excellent",
+    "image": "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/16/62/71/2c/the-heart-soul-of-pokhara.jpg?w=1400&h=-1&s=1"
+  },
+  {
+    "name": "Pashupatinath Temple",
+    "slug": "pashupatinath-temple",
+    "description": "Sacred Hindu temple complex on the banks of Bagmati River, major pilgrimage site.",
+    "latitude": 27.7105,
+    "longitude": 85.3488,
+    "averageCost": 150.0,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Shivling",
+      "Sadu photographs",
+      "Rituals"
+    ],
+    "activities": [
+      "Temple darshan",
+      "Watching cremation rituals (from distance)",
+      "Exploring ghats"
+    ],
+    "altitude": 1330,
+    "climate": "Temperate",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Excellent",
+    "image": "https://cms.holidaystonepal.in/media/Blogs/Pashupatinath-Temple-Photos/Pashupatinath-Temple.png"
+  },
+  {
+    "name": "Swayambhunath Stupa",
+    "slug": "swayambhunath",
+    "description": "Ancient Buddhist stupa (Monkey Temple) on a hilltop offering panoramic views of Kathmandu Valley.",
+    "latitude": 27.7149,
+    "longitude": 85.3007,
+    "averageCost": 200.0,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Prayer wheels",
+      "Monkeys",
+      "Buddha eyes"
+    ],
+    "activities": [
+      "Circumambulation",
+      "Photography",
+      "Sunset viewing"
+    ],
+    "altitude": 1400,
+    "climate": "Temperate",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Excellent",
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Swayambhunath_2018.jpg/1280px-Swayambhunath_2018.jpg"
+  },
+  {
+    "name": "Tilicho Lake",
+    "slug": "tilicho-lake",
+    "description": "One of the highest lakes in the world, situated in Annapurna region at extreme altitude.",
+    "latitude": 28.693,
+    "longitude": 83.805,
+    "averageCost": 1100.0,
+    "difficulty": "Hard",
+    "bestSeason": "April-May, October-November",
+    "duration": "12 days",
+    "famousLocalItems": [
+      "High altitude lake view",
+      "Annapurna panorama"
+    ],
+    "activities": [
+      "Trekking",
+      "Photography",
+      "Acclimatization walks"
+    ],
+    "altitude": 4919,
+    "climate": "Alpine",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Low",
+    "internetAvailability": "None",
+    "image": "https://www.trippokhara.com/public/uploads/tilicho-lake.webp"
+  },
+  {
+    "name": "Kanchenjunga Base Camp",
+    "slug": "kanchenjunga-base-camp",
+    "description": "Remote trek to the base of world's third highest mountain with pristine landscapes.",
+    "latitude": 27.702,
+    "longitude": 88.148,
+    "averageCost": 1800.0,
+    "difficulty": "Hard",
+    "bestSeason": "March-May, October-November",
+    "duration": "20 days",
+    "famousLocalItems": [
+      "Kanchenjunga views",
+      "Rhododendron forests"
+    ],
+    "activities": [
+      "Trekking",
+      "Camping",
+      "Wildlife spotting"
+    ],
+    "altitude": 5143,
+    "climate": "Alpine",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Very Low",
+    "internetAvailability": "None",
+    "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPMgu0Bmw65fOD427HcV1thomFbBpBsfP00A&s"
+  },
+  {
+    "name": "Upper Dolpo",
+    "slug": "upper-dolpo",
+    "description": "Remote trans-Himalayan region with ancient monasteries and stark beauty.",
+    "latitude": 29.183,
+    "longitude": 82.833,
+    "averageCost": 2500.0,
+    "difficulty": "Hard",
+    "bestSeason": "June-September",
+    "duration": "18 days",
+    "famousLocalItems": [
+      "Shey Gompa",
+      "Phoksundo Lake"
+    ],
+    "activities": [
+      "Trekking",
+      "Cultural immersion",
+      "Monastery visits"
+    ],
+    "altitude": 4200,
+    "climate": "Cold desert",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Very Low",
+    "internetAvailability": "None",
+    "image": "https://www.nepalecotrekking.com/public/uploads/upper%20Dolpo%20trek.jpg"
+  },
+  {
+    "name": "Bardiya National Park",
+    "slug": "bardiya-national-park",
+    "description": "One of Nepal's best places for tiger and wildlife safari in dense Terai jungle.",
+    "latitude": 28.383,
+    "longitude": 81.5,
+    "averageCost": 700.0,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "4 days",
+    "famousLocalItems": [
+      "Royal Bengal Tiger",
+      "One-horned rhinoceros"
+    ],
+    "activities": [
+      "Jeep safari",
+      "Canoeing",
+      "Bird watching"
+    ],
+    "altitude": 152,
+    "climate": "Subtropical",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Low",
+    "internetAvailability": "Moderate",
+    "image": "https://media-cdn.tripadvisor.com/media/photo-s/18/0f/4d/35/bardia-national-park.jpg"
+  },
+  {
+    "name": "Gokyo Lakes",
+    "slug": "gokyo-lakes",
+    "description": "Stunning series of turquoise glacial lakes with views of Everest, Cho Oyu and Makalu.",
+    "latitude": 27.956,
+    "longitude": 86.672,
+    "averageCost": 1300.0,
+    "difficulty": "Hard",
+    "bestSeason": "March-May, October-November",
+    "duration": "14 days",
+    "famousLocalItems": [
+      "Gokyo Ri viewpoint",
+      "Ngozumpa Glacier"
+    ],
+    "activities": [
+      "Trekking",
+      "Lake exploration",
+      "Peak climbing views"
+    ],
+    "altitude": 4750,
+    "climate": "Alpine",
+    "safetyLevel": "Low",
+    "permitsRequired": true,
+    "crowdLevel": "Low",
+    "internetAvailability": "Limited",
+    "image": "https://www.trekguiders.com/public/images/upload/package/gokyo-valley-trek62.jpeg"
+  },
+  {
+    "name": "Manaslu Circuit",
+    "slug": "manaslu-circuit",
+    "description": "Less crowded alternative to Annapurna Circuit with dramatic mountain scenery.",
+    "latitude": 28.55,
+    "longitude": 84.833,
+    "averageCost": 1400.0,
+    "difficulty": "Hard",
+    "bestSeason": "March-May, September-November",
+    "duration": "16 days",
+    "famousLocalItems": [
+      "Manaslu peak",
+      "Larkya La pass"
+    ],
+    "activities": [
+      "Trekking",
+      "Cultural village visits",
+      "High pass crossing"
+    ],
+    "altitude": 5160,
+    "climate": "Alpine",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Low",
+    "internetAvailability": "None",
+    "image": "https://cms.discoveryworldtrekking.com/media/7003/manaslu-circuit-trek-during-autumn.webp"
+  },
+  {
+    "name": "Nagarkot",
+    "slug": "nagarkot",
+    "description": "Popular hill station famous for sunrise views over the Himalayas including Everest.",
+    "latitude": 27.715,
+    "longitude": 85.521,
+    "averageCost": 300.0,
+    "difficulty": "Easy",
+    "bestSeason": "October-March",
+    "duration": "2 days",
+    "famousLocalItems": [
+      "Sunrise viewpoint",
+      "Himalayan panorama"
+    ],
+    "activities": [
+      "Sunrise/sunset watching",
+      "Short hikes",
+      "Resort stay"
+    ],
+    "altitude": 2195,
+    "climate": "Temperate",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Moderate",
+    "internetAvailability": "Good",
+    "image": "https://d2a0if70l7p1kn.cloudfront.net/images/nagarkot.jpg"
+  },
+  {
+    "name": "Chitwan National Park",
+    "slug": "chitwan-national-park",
+    "description": "UNESCO World Heritage Site famous for one-horned rhinos, tigers and jungle safaris.",
+    "latitude": 27.5,
+    "longitude": 84.333,
+    "averageCost": 600.0,
+    "difficulty": "Easy",
+    "bestSeason": "October-March",
+    "duration": "3-4 days",
+    "famousLocalItems": [
+      "Rhino",
+      "Bengal tiger",
+      "Tharu culture"
+    ],
+    "activities": [
+      "Jeep safari",
+      "Elephant safari",
+      "Canoe ride",
+      "Tharu cultural show"
+    ],
+    "altitude": 150,
+    "climate": "Subtropical",
+    "safetyLevel": "Moderate",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Moderate",
+    "image": "https://himalayan-masters.com/wp-content/uploads/2023/10/Chitwan-National-Park-Safari.webp"
+  },
+  {
+    "name": "Pokhara",
+    "slug": "pokhara",
+    "description": "Lakeside city known as gateway to Annapurna region with adventure sports and relaxation.",
+    "latitude": 28.209,
+    "longitude": 83.985,
+    "averageCost": 500.0,
+    "difficulty": "Easy",
+    "bestSeason": "September-May",
+    "duration": "3-5 days",
+    "famousLocalItems": [
+      "Fewa Lake",
+      "World Peace Pagoda",
+      "Paragliding"
+    ],
+    "activities": [
+      "Paragliding",
+      "Boating",
+      "Cave exploration",
+      "Hiking"
+    ],
+    "altitude": 827,
+    "climate": "Subtropical",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Excellent",
+    "image": "https://i.ytimg.com/vi/A5pKLbnQ3_w/maxresdefault.jpg"
+  },
+  {
+    "name": "Everest Base Camp Trek",
+    "slug": "everest-base-camp",
+    "description": "Iconic trek to the base of the world's highest mountain with Sherpa culture.",
+    "latitude": 27.988,
+    "longitude": 86.925,
+    "averageCost": 2200.0,
+    "difficulty": "Hard",
+    "bestSeason": "March-May, September-November",
+    "duration": "14 days",
+    "famousLocalItems": [
+      "Everest view",
+      "Namche Bazaar",
+      "Khumbu Icefall"
+    ],
+    "activities": [
+      "Trekking",
+      "Acclimatization",
+      "Cultural visits"
+    ],
+    "altitude": 5364,
+    "climate": "Alpine",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "High",
+    "internetAvailability": "Limited",
+    "image": "https://excitingnepal.com/wp-content/uploads/2021/12/12-Days-Everest-base-Camp-trek.jpeg"
+  },
+  {
+    "name": "Annapurna Base Camp",
+    "slug": "annapurna-base-camp",
+    "description": "Classic trek to the amphitheater of Annapurna mountains with diverse landscapes.",
+    "latitude": 28.53,
+    "longitude": 83.88,
+    "averageCost": 1000.0,
+    "difficulty": "Moderate",
+    "bestSeason": "March-May, September-November",
+    "duration": "9-12 days",
+    "famousLocalItems": [
+      "Annapurna sanctuary",
+      "Machhapuchhre view"
+    ],
+    "activities": [
+      "Trekking",
+      "Hot springs",
+      "Gurung village visits"
+    ],
+    "altitude": 4130,
+    "climate": "Alpine",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "High",
+    "internetAvailability": "Limited",
+    "image": "https://himalayan-masters.com/wp-content/uploads/2022/09/Annapurna-Base-camp-Trek-Cost.webp"
+  },
+  {
+    "name": "Lumbini",
+    "slug": "lumbini",
+    "description": "Birthplace of Lord Buddha, a peaceful pilgrimage site with international monasteries.",
+    "latitude": 27.469,
+    "longitude": 83.275,
+    "averageCost": 200.0,
+    "difficulty": "Easy",
+    "bestSeason": "October-March",
+    "duration": "2 days",
+    "famousLocalItems": [
+      "Maya Devi Temple",
+      "Ashoka Pillar"
+    ],
+    "activities": [
+      "Monastery visits",
+      "Meditation",
+      "Gardens walk"
+    ],
+    "altitude": 100,
+    "climate": "Subtropical",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Moderate",
+    "internetAvailability": "Good",
+    "image": "https://lumbinidevtrust.gov.np/upload_file/images/slider/1721894939_276597348_lumbini.jpg"
+  },
+  {
+    "name": "Langtang Valley",
+    "slug": "langtang-valley",
+    "description": "Beautiful valley trek close to Kathmandu with Tamang culture and mountain views.",
+    "latitude": 28.167,
+    "longitude": 85.5,
+    "averageCost": 800.0,
+    "difficulty": "Moderate",
+    "bestSeason": "March-May, September-November",
+    "duration": "7-10 days",
+    "famousLocalItems": [
+      "Kyanjin Gompa",
+      "Langtang Lirung"
+    ],
+    "activities": [
+      "Trekking",
+      "Cheese factory visit",
+      "Hot springs"
+    ],
+    "altitude": 4984,
+    "climate": "Alpine",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Limited",
+    "image": "https://himalayan-masters.com/wp-content/uploads/2025/02/Langtang-Valley-People-Culture-and-Main-Attractions.webp"
+  },
+  {
+    "name": "Rara Lake",
+    "slug": "rara-lake",
+    "description": "Nepal's largest lake surrounded by pine forests and high mountains.",
+    "latitude": 29.533,
+    "longitude": 82.083,
+    "averageCost": 1200.0,
+    "difficulty": "Moderate",
+    "bestSeason": "September-November, March-May",
+    "duration": "8-10 days",
+    "famousLocalItems": [
+      "Rara Lake viewpoint",
+      "Bird watching"
+    ],
+    "activities": [
+      "Trekking",
+      "Boating",
+      "Camping"
+    ],
+    "altitude": 2990,
+    "climate": "Temperate-Alpine",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Very Low",
+    "internetAvailability": "None",
+    "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmlAANQ2jU4hYY4sFLiJGiTzI-ZCpF1tePRA&s"
+  },
+  {
+    "name": "Patan Durbar Square",
+    "slug": "patan-durbar-square",
+    "description": "UNESCO World Heritage site with exquisite Newari architecture and temples.",
+    "latitude": 27.672,
+    "longitude": 85.325,
+    "averageCost": 150.0,
+    "difficulty": "Easy",
+    "bestSeason": "October-March",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Krishna Mandir",
+      "Golden Temple"
+    ],
+    "activities": [
+      "Heritage walk",
+      "Museum visit",
+      "Shopping handicrafts"
+    ],
+    "altitude": 1300,
+    "climate": "Temperate",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Moderate",
+    "internetAvailability": "Excellent",
+    "image": "https://www.xinhuanet.com/english/asiapacific/2019-10/23/138496278_15718198854521n.jpg"
+  },
+  {
+    "name": "Bhaktapur Durbar Square",
+    "slug": "bhaktapur-durbar-square",
+    "description": "Medieval city with well-preserved Newari architecture and pottery squares.",
+    "latitude": 27.672,
+    "longitude": 85.428,
+    "averageCost": 250.0,
+    "difficulty": "Easy",
+    "bestSeason": "October-March",
+    "duration": "1-2 days",
+    "famousLocalItems": [
+      "Nyatapola Temple",
+      "Pottery Square"
+    ],
+    "activities": [
+      "Heritage exploration",
+      "Pottery making",
+      "Festival watching"
+    ],
+    "altitude": 1401,
+    "climate": "Temperate",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Moderate",
+    "internetAvailability": "Good",
+    "image": "https://greatergo.org/uploads/assets/Belt-and-road/Nepal/bake.jpg"
+  },
+  {
+    "name": "Sarangkot Sunrise Point",
+    "slug": "sarangkot",
+    "description": "Best spot near Pokhara for sunrise over Annapurna and Dhaulagiri range.",
+    "latitude": 28.244,
+    "longitude": 83.945,
+    "averageCost": 150.0,
+    "difficulty": "Easy",
+    "bestSeason": "September-May",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Paragliding takeoff",
+      "Himalayan sunrise"
+    ],
+    "activities": [
+      "Sunrise viewing",
+      "Paragliding",
+      "Short hike"
+    ],
+    "altitude": 1600,
+    "climate": "Temperate",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Good",
+    "image": "https://media.holidaytoursnepal.com/uploads/fullbanner/sarangkot-sunrise-banner.webp"
+  },
+  {
+    "name": "Kalinchowk Bhagwati",
+    "slug": "kalinchowk",
+    "description": "Popular hilltop temple and snow destination in Dolakha.",
+    "latitude": 27.717,
+    "longitude": 86.033,
+    "averageCost": 200,
+    "difficulty": "Easy",
+    "bestSeason": "November-March",
+    "duration": "2 days",
+    "famousLocalItems": [
+      "Kalinchowk Temple",
+      "Snowfall"
+    ],
+    "activities": [
+      "Snow play",
+      "Temple visit",
+      "Cable car"
+    ],
+    "altitude": 3842,
+    "climate": "Cold",
+    "safetyLevel": "Moderate",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Moderate",
+    "image": "https://hikeontreks.com/wp-content/uploads/2020/01/Kalinchowk-Tour-2020-Pilgrimage-Trip-to-Kalinchowk-Bhagwati.jpg"
+  },
+  {
+    "name": "Manungkot",
+    "slug": "manungkot",
+    "description": "Scenic viewpoint near Tanahun for Himalayan sunrise and sunset.",
+    "latitude": 28.04,
+    "longitude": 84.3,
+    "averageCost": 100,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Sunrise view",
+      "Local homestay"
+    ],
+    "activities": [
+      "Hiking",
+      "Photography"
+    ],
+    "altitude": 1300,
+    "climate": "Temperate",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Moderate",
+    "image": "https://risingnepaldaily.com/storage/media/37832/manahun-kot1.jpg"
+  },
+  {
+    "name": "Janakpur",
+    "slug": "janakpur",
+    "description": "Historic city known for Janaki Temple and Mithila culture.",
+    "latitude": 26.728,
+    "longitude": 85.921,
+    "averageCost": 150,
+    "difficulty": "Easy",
+    "bestSeason": "October-March",
+    "duration": "2 days",
+    "famousLocalItems": [
+      "Janaki Temple",
+      "Mithila art"
+    ],
+    "activities": [
+      "Temple visit",
+      "Cultural tour"
+    ],
+    "altitude": 74,
+    "climate": "Subtropical",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Good",
+    "image": "https://www.himalayanabode.com/wp-content/uploads/2024/03/Janaki_Mandir_Janakpur-scaled.jpg"
+  },
+  {
+    "name": "Kusma Bungee Jump",
+    "slug": "kusma-bungee",
+    "description": "Highest bungee jump spot in Nepal over Kali Gandaki river.",
+    "latitude": 28.221,
+    "longitude": 83.675,
+    "averageCost": 250,
+    "difficulty": "Moderate",
+    "bestSeason": "September-May",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Bungee bridge",
+      "Kali Gandaki Gorge"
+    ],
+    "activities": [
+      "Bungee jumping",
+      "Swing"
+    ],
+    "altitude": 700,
+    "climate": "Temperate",
+    "safetyLevel": "Moderate",
+    "permitsRequired": false,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Moderate",
+    "image": "https://www.kushmabungeejump.com/wp-content/uploads/2021/03/bungee-jump-kushma.jpg"
+  },
+  {
+    "name": "Ghalegaun",
+    "slug": "ghalegaun",
+    "description": "Beautiful Gurung village known for homestays and mountain views.",
+    "latitude": 28.21,
+    "longitude": 84.36,
+    "averageCost": 120,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "2 days",
+    "famousLocalItems": [
+      "Gurung culture",
+      "Homestay"
+    ],
+    "activities": [
+      "Village walk",
+      "Cultural show"
+    ],
+    "altitude": 2100,
+    "climate": "Cool",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Limited",
+    "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQVHbE_BbvhHmqgIRSi_qOf5v1-Y4MRd6-vlg&s"
+  },
+  {
+    "name": "Ghandruk",
+    "slug": "ghandruk",
+    "description": "Famous Gurung village and gateway to Annapurna Base Camp.",
+    "latitude": 28.466,
+    "longitude": 83.823,
+    "averageCost": 180,
+    "difficulty": "Easy",
+    "bestSeason": "October-May",
+    "duration": "2 days",
+    "famousLocalItems": [
+      "Annapurna view",
+      "Gurung Museum"
+    ],
+    "activities": [
+      "Hiking",
+      "Cultural tour"
+    ],
+    "altitude": 1940,
+    "climate": "Cool",
+    "safetyLevel": "Low",
+    "permitsRequired": true,
+    "crowdLevel": "High",
+    "internetAvailability": "Moderate",
+    "image": "https://nagarjunatravels.com/images/post-images/1761558753.webp"
+  },
+  {
+    "name": "Rani Mahal",
+    "slug": "ranimahal",
+    "description": "Historic palace located on the bank of Kali Gandaki river.",
+    "latitude": 27.904,
+    "longitude": 83.586,
+    "averageCost": 120,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Palace architecture",
+      "River view"
+    ],
+    "activities": [
+      "Sightseeing",
+      "Photography"
+    ],
+    "altitude": 520,
+    "climate": "Warm",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Limited",
+    "image": "https://english.pardafas.com/wp-content/uploads/2023/02/Rani-Mahal.jpg"
+  },
+  {
+    "name": "Mustang",
+    "slug": "mustang",
+    "description": "Trans-Himalayan desert region famous for Lo Manthang and culture.",
+    "latitude": 28.998,
+    "longitude": 83.941,
+    "averageCost": 500,
+    "difficulty": "Hard",
+    "bestSeason": "March-October",
+    "duration": "7 days",
+    "famousLocalItems": [
+      "Lo Manthang",
+      "Caves"
+    ],
+    "activities": [
+      "Trekking",
+      "Cultural tour"
+    ],
+    "altitude": 3800,
+    "climate": "Cold desert",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Low",
+    "internetAvailability": "Limited",
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Kagdeni%2C_Mustang%2C_Nepal.jpg/1280px-Kagdeni%2C_Mustang%2C_Nepal.jpg"
+  },
+  {
+    "name": "Shey Phoksundo Lake",
+    "slug": "shey-phoksundo",
+    "description": "Deep blue alpine lake inside Shey Phoksundo National Park.",
+    "latitude": 29.2,
+    "longitude": 82.967,
+    "averageCost": 450,
+    "difficulty": "Hard",
+    "bestSeason": "May-September",
+    "duration": "6 days",
+    "famousLocalItems": [
+      "Phoksundo Lake",
+      "Waterfall"
+    ],
+    "activities": [
+      "Trekking",
+      "Photography"
+    ],
+    "altitude": 3611,
+    "climate": "Cold",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Low",
+    "internetAvailability": "None",
+    "image": "https://english.nepalnews.com/wp-content/uploads/2024/10/272161950_107018395216152_625609914413180482_n1698559298.jpg"
+  },
+  {
+    "name": "Badimalika",
+    "slug": "badimalika",
+    "description": "Sacred temple and remote trekking destination in Bajura.",
+    "latitude": 29.47,
+    "longitude": 81.55,
+    "averageCost": 400,
+    "difficulty": "Hard",
+    "bestSeason": "June-September",
+    "duration": "7 days",
+    "famousLocalItems": [
+      "Badimalika Temple",
+      "High pasturelands"
+    ],
+    "activities": [
+      "Trekking",
+      "Pilgrimage"
+    ],
+    "altitude": 4200,
+    "climate": "Cold",
+    "safetyLevel": "Moderate",
+    "permitsRequired": false,
+    "crowdLevel": "Low",
+    "internetAvailability": "None",
+    "image": "https://epictreknepal.com/wp-content/uploads/2026/02/Badimalika-1.webp"
+  },
+  {
+    "name": "Manakamana Cable Car",
+    "slug": "manakamana-cablecar",
+    "description": "Cable car route to Manakamana Temple from Kurintar.",
+    "latitude": 27.914,
+    "longitude": 84.463,
+    "averageCost": 120,
+    "difficulty": "Easy",
+    "bestSeason": "All year",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Manakamana Temple",
+      "Cable car ride"
+    ],
+    "activities": [
+      "Pilgrimage",
+      "Sightseeing"
+    ],
+    "altitude": 1300,
+    "climate": "Warm",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Good",
+    "image": "https://img.drz.lazcdn.com/static/np/p/5ca6fc3ae7ff35e81d8462b5cd6a7330.jpg_720x720q80.jpg"
+  },
+  {
+    "name": "Gorkha Durbar",
+    "slug": "gorkha-durbar",
+    "description": "Historic palace of King Prithvi Narayan Shah.",
+    "latitude": 28.0,
+    "longitude": 84.63,
+    "averageCost": 100,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Palace",
+      "Museum"
+    ],
+    "activities": [
+      "Sightseeing",
+      "History tour"
+    ],
+    "altitude": 1000,
+    "climate": "Temperate",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Moderate",
+    "image": "https://thewondernepal.com/media/uploads/2025/08/22/1682496273sidetrackimageimage_750x_61facb75a279b.jpg"
+  },
+  {
+    "name": "Mardi Himal Trek",
+    "slug": "mardi-trek",
+    "description": "Short trek with close views of Machhapuchhre and Annapurna.",
+    "latitude": 28.45,
+    "longitude": 83.85,
+    "averageCost": 300,
+    "difficulty": "Moderate",
+    "bestSeason": "March-May",
+    "duration": "5 days",
+    "famousLocalItems": [
+      "Mardi Base Camp",
+      "Machhapuchhre view"
+    ],
+    "activities": [
+      "Trekking",
+      "Photography"
+    ],
+    "altitude": 4500,
+    "climate": "Cold",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Limited",
+    "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSKPgdBksV3ieWeiDXYlbX-1XQSGuR6GsRDJA&s"
+  },
+  {
+    "name": "Sirubari Village",
+    "slug": "sirubari",
+    "description": "Famous homestay village known for Gurung culture and hospitality.",
+    "latitude": 28.09,
+    "longitude": 83.76,
+    "averageCost": 150,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "2 days",
+    "famousLocalItems": [
+      "Gurung culture",
+      "Homestay program"
+    ],
+    "activities": [
+      "Village walk",
+      "Cultural show"
+    ],
+    "altitude": 1700,
+    "climate": "Cool",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Limited",
+    "image": "https://hikeontreks.com/wp-content/uploads/2025/01/sirubari-village-homestay-tour.jpg"
+  },
+  {
+    "name": "Sikles",
+    "slug": "sikles",
+    "description": "Traditional Gurung village with stunning views of Lamjung Himal.",
+    "latitude": 28.315,
+    "longitude": 84.04,
+    "averageCost": 160,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "2 days",
+    "famousLocalItems": [
+      "Lamjung Himal view",
+      "Gurung culture"
+    ],
+    "activities": [
+      "Hiking",
+      "Village tour"
+    ],
+    "altitude": 1980,
+    "climate": "Cool",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Low",
+    "internetAvailability": "Limited",
+    "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_Q8ZF7GoYWa-TjOvLTCI7PnQEOIJWrx8gKw&s"
+  },
+  {
+    "name": "Beni",
+    "slug": "beni",
+    "description": "Gateway town to Myagdi and western trekking routes.",
+    "latitude": 28.35,
+    "longitude": 83.56,
+    "averageCost": 100,
+    "difficulty": "Easy",
+    "bestSeason": "All year",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Kali Gandaki river",
+      "Local bazaar"
+    ],
+    "activities": [
+      "Sightseeing",
+      "Local food tour"
+    ],
+    "altitude": 899,
+    "climate": "Warm",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Good",
+    "image": "https://risingnepaldaily.com/storage/media/54210/Beni-cover.png"
+  },
+  {
+    "name": "Baglung Kalika",
+    "slug": "baglung-kalika",
+    "description": "Famous hilltop temple dedicated to Goddess Kalika in Baglung.",
+    "latitude": 28.275,
+    "longitude": 83.59,
+    "averageCost": 80,
+    "difficulty": "Easy",
+    "bestSeason": "October-April",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Kalika Temple",
+      "Mountain view"
+    ],
+    "activities": [
+      "Pilgrimage",
+      "Sightseeing"
+    ],
+    "altitude": 2110,
+    "climate": "Cool",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Limited",
+    "image": "https://risingnepaldaily.com/storage/editor/photos/shares/Tandan/KG-Galkot-Baglung-IMG_4249__1_.jpg"
+  },
+  {
+    "name": "Annapurna Cable Car",
+    "slug": "annapurna-cablecar",
+    "description": "New cable car route offering panoramic views of the Annapurna range.",
+    "latitude": 28.255,
+    "longitude": 83.96,
+    "averageCost": 120,
+    "difficulty": "Easy",
+    "bestSeason": "All year",
+    "duration": "1 day",
+    "famousLocalItems": [
+      "Cable car ride",
+      "Annapurna view"
+    ],
+    "activities": [
+      "Sightseeing",
+      "Photography"
+    ],
+    "altitude": 1650,
+    "climate": "Temperate",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "High",
+    "internetAvailability": "Good",
+    "image": "https://cdn.getyourguide.com/image/format=auto,fit=crop,gravity=auto,quality=60,width=450,height=450,dpr=2/tour_img/11b585a17a46f1415948f6dba1c39441c9db3d1379f10ca70f5adeef344b5ed7.jpg"
+  },
+  {
+    "name": "Bujung Village",
+    "slug": "bujung",
+    "description": "Remote Gurung village known for peace, culture and mountain views.",
+    "latitude": 28.225,
+    "longitude": 84.12,
+    "averageCost": 140,
+    "difficulty": "Moderate",
+    "bestSeason": "October-April",
+    "duration": "2 days",
+    "famousLocalItems": [
+      "Traditional houses",
+      "Gurung culture"
+    ],
+    "activities": [
+      "Village hike",
+      "Cultural experience"
+    ],
+    "altitude": 1500,
+    "climate": "Cool",
+    "safetyLevel": "Low",
+    "permitsRequired": false,
+    "crowdLevel": "Low",
+    "internetAvailability": "Limited",
+    "image": "https://republicaimg.nagariknewscdn.com/shared/web/uploads/media/Bhujung-village-Lamjung.jpg"
+  },
+  {
+    "name": "Manang",
+    "slug": "manang",
+    "description": "High Himalayan valley and major stop on the Annapurna Circuit trek.",
+    "latitude": 28.666,
+    "longitude": 84.017,
+    "averageCost": 300,
+    "difficulty": "Moderate",
+    "bestSeason": "March-May",
+    "duration": "4 days",
+    "famousLocalItems": [
+      "Gangapurna Lake",
+      "Annapurna Circuit"
+    ],
+    "activities": [
+      "Trekking",
+      "Acclimatization hikes"
+    ],
+    "altitude": 3540,
+    "climate": "Cold",
+    "safetyLevel": "Moderate",
+    "permitsRequired": true,
+    "crowdLevel": "Medium",
+    "internetAvailability": "Limited",
+    "image": "https://wellnepaltreks.com/wp-content/uploads/2019/03/manang.jpg"
+  }
+]

@@ -40,9 +40,10 @@ export const destinationsData: Place[] = [
       coordinates: { lat: 27.7149, lng: 85.2904 }
     },
     images: [
-      'https://images.unsplash.com/photo-1518002171953-a080ee817e1f?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=800&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1504214208698-ea1916a2195a?w=800&h=600&fit=crop'
+      '/images/destinations/swayambhunath-2.jpg',
+      '/images/destinations/swayambhunath.jpg',
+      
+
     ],
     category: 'historical',
     rating: 4.9,

@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
-from drf_spectacular.types import OpenApiTypes
+# from drf_spectacular.types import OpenApiTypes
 
 from accounts.models import User, PasswordResetOTP
 from accounts.serializers.password_reset import (

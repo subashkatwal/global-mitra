@@ -1,25 +1,27 @@
 from django.db.models import Q
+from django.db import transaction
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.permissions import AllowAny
+from rest_framework.parsers import MultiPartParser
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from drf_spectacular.types import OpenApiTypes
-from rest_framework.parsers import MultiPartParser,FormParser
-from .models import Destination
-from .serializers import DestinationSerializer, DestinationListSerializer
-from .filters import DestinationFilter
+
 from globalmitra.permissions import IsAdminUser
+from .models import Destination
+from .filters import DestinationFilter
 from destinations.serializers import (
     DestinationSerializer,
     DestinationListSerializer,
-  DestinationUploadSerializers,
-  DestinationFileUploadSerializer
-  )
-import json 
+    DestinationUploadSerializers,
+    DestinationFileUploadSerializer
+)
+
+import json
 import io
 import csv
-from django.db import transaction
+
 
 ALLOWED_ORDERING = {
     "name", "-name",
@@ -46,57 +48,54 @@ class DestinationListCreateView(GenericAPIView):
         summary="List destinations",
         auth=[],
         parameters=[
-            OpenApiParameter("search",               OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False, description="Search name, description, climate, bestSeason, difficulty."),
-            OpenApiParameter("ordering",             OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False, enum=sorted(ALLOWED_ORDERING)),
-            OpenApiParameter("page",                 OpenApiTypes.INT,      OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("page_size",            OpenApiTypes.INT,      OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("difficulty",           OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False, enum=["Easy", "Moderate", "Hard", "Extreme"]),
-            OpenApiParameter("bestSeason",           OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("crowdLevel",           OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False, enum=["Low", "Medium", "High"]),
-            OpenApiParameter("safetyLevel",          OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False, enum=["Safe", "Moderate", "Dangerous"]),
-            OpenApiParameter("internetAvailability", OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False, enum=["None", "Limited", "Moderate", "Good", "Excellent"]),
-            OpenApiParameter("permitsRequired",      OpenApiTypes.BOOL,     OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("climate",              OpenApiTypes.STR,      OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("averageCost_min",      OpenApiTypes.NUMBER,   OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("averageCost_max",      OpenApiTypes.NUMBER,   OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("altitude_min",         OpenApiTypes.INT,      OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("altitude_max",         OpenApiTypes.INT,      OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("createdAt_after",      OpenApiTypes.DATETIME, OpenApiParameter.QUERY, required=False),
-            OpenApiParameter("createdAt_before",     OpenApiTypes.DATETIME, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("search", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("ordering", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False, enum=sorted(ALLOWED_ORDERING)),
+            OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("page_size", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("difficulty", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("bestSeason", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("crowdLevel", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("safetyLevel", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("internetAvailability", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("permitsRequired", OpenApiTypes.BOOL, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("climate", OpenApiTypes.STR, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("averageCost_min", OpenApiTypes.NUMBER, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("averageCost_max", OpenApiTypes.NUMBER, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("altitude_min", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("altitude_max", OpenApiTypes.INT, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("createdAt_after", OpenApiTypes.DATETIME, OpenApiParameter.QUERY, required=False),
+            OpenApiParameter("createdAt_before", OpenApiTypes.DATETIME, OpenApiParameter.QUERY, required=False),
         ],
         responses={200: DestinationListSerializer(many=True)},
-        
     )
     def get(self, request):
         queryset = Destination.objects.all()
 
-        # Filter
         filterset = DestinationFilter(request.query_params, queryset=queryset)
         if not filterset.is_valid():
             return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
+
         queryset = filterset.qs
 
-        # Search
         search = request.query_params.get("search", "").strip()
         if search:
             queryset = queryset.filter(
-                Q(name__icontains=search)
-                | Q(description__icontains=search)
-                | Q(climate__icontains=search)
-                | Q(bestSeason__icontains=search)
-                | Q(difficulty__icontains=search)
+                Q(name__icontains=search) |
+                Q(description__icontains=search) |
+                Q(climate__icontains=search) |
+                Q(bestSeason__icontains=search) |
+                Q(difficulty__icontains=search)
             )
 
-        # Ordering
         ordering = request.query_params.get("ordering", "-createdAt").strip()
         if ordering not in ALLOWED_ORDERING:
             return Response(
                 {"error": f"Invalid ordering '{ordering}'.", "allowed": sorted(ALLOWED_ORDERING)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         queryset = queryset.order_by(ordering)
 
-        # Pagination — uses PAGE_SIZE + DEFAULT_PAGINATION_CLASS from settings
         page = self.paginate_queryset(queryset)
         return self.get_paginated_response(
             DestinationListSerializer(page, many=True).data
@@ -119,15 +118,12 @@ class DestinationListCreateView(GenericAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
 _PATH_PARAM = OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH, required=True)
 
 
 @extend_schema(tags=["Destinations"])
 class DestinationDetailView(GenericAPIView):
-    queryset = Destination.objects.all()
     serializer_class = DestinationSerializer
-    lookup_field = "pk"
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -166,10 +162,12 @@ class DestinationDetailView(GenericAPIView):
         destination = self.get_object(pk)
         if not destination:
             return Response({"error": "Destination not found."}, status=status.HTTP_404_NOT_FOUND)
+
         serializer = DestinationSerializer(destination, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
@@ -185,24 +183,26 @@ class DestinationDetailView(GenericAPIView):
         destination = self.get_object(pk)
         if not destination:
             return Response({"error": "Destination not found."}, status=status.HTTP_404_NOT_FOUND)
+
         destination.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
+
 
 @extend_schema(tags=["Destinations"])
 class DestinationBulkUpload(GenericAPIView):
-    permission_classes= [IsAdminUser]
-    serializer_class= DestinationFileUploadSerializer  
-    parser_classes = [MultiPartParser] 
+    permission_classes = [IsAdminUser]
+    serializer_class = DestinationFileUploadSerializer
+    parser_classes = [MultiPartParser]
 
     @extend_schema(
         summary="Bulk upload destinations via CSV or JSON file (admin only)",
         request={
-            'multipart/form-data': {
-                'type': 'object',
-                'properties': {
-                    'file': {'type': 'string', 'format': 'binary'}
-                }
+            "multipart/form-data": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "format": "binary"}
+                },
+                "required": ["file"]
             }
         },
         responses={
@@ -211,21 +211,23 @@ class DestinationBulkUpload(GenericAPIView):
             403: OpenApiResponse(description="Admin access required."),
         },
     )
-
     def post(self, request):
-        fileSerializer = DestinationFileUploadSerializer(data=request.data)
-        if not fileSerializer.is_valid():
-            return Response(fileSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        file_serializer = DestinationFileUploadSerializer(data=request.data)
+        if not file_serializer.is_valid():
+            return Response(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        uploadedFile = request.FILES['file']
-        ext = uploadedFile.name.split('.')[-1].lower()
+        uploaded_file = request.FILES.get("file")
+        if not uploaded_file:
+            return Response({"error": "File is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        ext = uploaded_file.name.split('.')[-1].lower()
 
         try:
-            rawData = self._parse_file(uploadedFile, ext)
+            raw_data = self._parse_file(uploaded_file, ext)
         except Exception as e:
             return Response({"error": f"Failed to parse file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = DestinationUploadSerializers(data=rawData, many=True)
+        serializer = DestinationUploadSerializers(data=raw_data, many=True)
         if not serializer.is_valid():
             return Response(
                 {"error": "Validation failed.", "details": serializer.errors},
@@ -236,7 +238,7 @@ class DestinationBulkUpload(GenericAPIView):
             created = []
             for item in serializer.validated_data:
                 obj, _ = Destination.objects.update_or_create(
-                    slug=item['slug'],
+                    slug=item["slug"],
                     defaults=item
                 )
                 created.append(obj)
@@ -246,36 +248,39 @@ class DestinationBulkUpload(GenericAPIView):
             status=status.HTTP_201_CREATED
         )
 
-    def _parse_file(self, uploadedFile, ext):
-        if ext == 'json':
-            return self._parse_json(uploadedFile)
-        return self._parse_csv(uploadedFile)
-    
-    def _parse_json(self,uploadedFile):
-        content= uploadedFile.read().decode('utf-8')
+    def _parse_file(self, uploaded_file, ext):
+        if ext == "json":
+            return self._parse_json(uploaded_file)
+        return self._parse_csv(uploaded_file)
+
+    def _parse_json(self, uploaded_file):
+        content = uploaded_file.read().decode("utf-8")
         data = json.loads(content)
-        if not isinstance(data,list):
-            raise ValueError("JSON File must contains list of destinations.")
+        if not isinstance(data, list):
+            raise ValueError("JSON file must contain a list of destinations.")
         return data
 
-    def _parse_csv(self,uploadedFile):
-        content= uploadedFile.read().decode('utf-8')
+    def _parse_csv(self, uploaded_file):
+        content = uploaded_file.read().decode("utf-8")
         reader = csv.DictReader(io.StringIO(content))
         data = []
+
         for row in reader:
-            for json_field in('famousLocalItems', 'activities'):
+            for json_field in ("famousLocalItems", "activities"):
                 if json_field in row and isinstance(row[json_field], str):
                     try:
                         row[json_field] = json.loads(row[json_field])
                     except json.JSONDecodeError:
-                        raise ValueError(f"Invalid JSON in column '{json_field}' at row: {row.get('name', '?')}")
+                        raise ValueError(
+                            f"Invalid JSON in column '{json_field}' at row: {row.get('name', '?')}"
+                        )
 
-            if 'permitsRequired' in row:
-                row['permitsRequired'] = row['permitsRequired'].strip().lower() in ('true', '1', 'yes')
+            if "permitsRequired" in row:
+                row["permitsRequired"] = row["permitsRequired"].strip().lower() in ("true", "1", "yes")
 
-            if row.get('altitude'):
-                row['altitude'] = int(row['altitude'])
+            if row.get("altitude"):
+                row["altitude"] = int(row["altitude"])
 
             data.append(dict(row))
-        return data
 
+        return data

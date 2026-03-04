@@ -2,7 +2,9 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db import models
 from django.utils import timezone
 import uuid
-
+# import hashlib
+# import secrets
+from datetime import timedelta
 
 class User(AbstractUser):
 
@@ -19,7 +21,14 @@ class User(AbstractUser):
 
     fullName = models.CharField(max_length=150)
     phoneNumber = models.CharField(max_length=10, unique=True, null=True, blank=True)
-    photo = models.URLField(blank=True, null=True)
+    photo = models.ImageField(
+        upload_to='profile_photos/',
+        blank=True,
+        null=True,
+        help_text="Profile photo — stored in MEDIA_ROOT/profile_photos/"
+    )
+    address = models.CharField(max_length=255, blank=True, null=True, help_text="Full address including city, district, country")
+
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='TOURIST')
     verified = models.BooleanField(default=False)
@@ -68,6 +77,7 @@ class GuideProfile(models.Model):
 
 
     licenseNumber = models.CharField(max_length=100,unique=True,help_text="Official guide license number (format varies in Nepal)",default='PENDING-001')
+    address = models.CharField(max_length=255, blank=True, null=True, help_text="Full address including city, district, country")
 
     licenseIssuedBy = models.CharField(max_length=150,help_text="e.g. Nepal Tourism Board", default='Nepal Tourism Board', )
     verificationStatus = models.CharField(max_length=20,choices=VERIFICATION_STATUS,default='PENDING')
@@ -78,9 +88,6 @@ class GuideProfile(models.Model):
     def __str__(self):
         return self.user.fullName
 
-import hashlib
-import secrets
-from datetime import timedelta
 
 class PasswordResetOTP(models.Model):
 

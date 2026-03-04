@@ -13,7 +13,8 @@ class Destination(models.Model):
     difficulty = models.CharField(max_length=50)
     bestSeason = models.CharField(max_length=100)
     duration = models.CharField(max_length=100)
-
+    district = models.CharField(max_length=100, default="Unknown")
+    country = models.CharField(max_length=100, default="Nepal")
     famousLocalItems = models.JSONField(default=list)
     activities = models.JSONField(default=list)
 
@@ -22,6 +23,12 @@ class Destination(models.Model):
     safetyLevel = models.CharField(max_length=50, null=True, blank=True)
 
     permitsRequired = models.BooleanField(default=False)
+    image = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="URL to a cover image of this destination"
+    )
 
     crowdLevel = models.CharField(max_length=50)
     internetAvailability = models.CharField(max_length=50)

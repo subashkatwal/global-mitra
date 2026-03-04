@@ -1,272 +1,396 @@
-import { useState, useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
-import { 
-  MapPin, Calendar, Users, Award, Star, Camera,
-  MapPinned, Bookmark, FileText, Settings, CheckCircle,
-  TrendingUp, Heart, MessageCircle
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Mail, MapPin,
+  Edit2, Loader2, AlertCircle, CheckCircle,
+  BadgeCheck, Trash2, Save, Shield, X
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { usePlaceStore } from '@/store/placeStore';
-import { useSocialStore } from '@/store/socialStore';
+import { apiFetch } from '@/services/api';
+import { AvatarUpload } from '@/components/AvatarUpload';
 
-interface ProfilePageProps {
-  userId?: string;
-  onPlaceClick: (id: string) => void;
+interface UserProfile {
+  id: string;
+  email: string;
+  fullName: string;
+  phoneNumber: string | null;
+  photo: string | null;
+  address: string | null;
+  role: 'TOURIST' | 'GUIDE' | 'ADMIN';
+  verified: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export function ProfilePage({ onPlaceClick }: ProfilePageProps) {
-  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'contributions'>('posts');
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(sectionRef, { once: true });
-  
-  const { user } = useAuthStore();
-  const { savedPlaces, places } = usePlaceStore();
-  const { posts } = useSocialStore();
-
-  const profileUser = user;
-  const savedPlacesList = places.filter(p => savedPlaces.includes(p.id));
-  const userPosts = posts.filter(p => p.userId === user?.id);
-
-  if (!profileUser) {
-    return (
-      <div className="section-padding pt-32 text-center">
-        <h2 className="text-2xl font-bold text-[#2C3E50]">Please sign in to view your profile</h2>
-      </div>
-    );
+function parseError(err: any): string {
+  const data = err?.response?.data || err?.data || err;
+  if (!data) return 'Something went wrong.';
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    if (data.detail)  return String(data.detail);
+    if (data.error)   return String(data.error);
+    if (data.message) return String(data.message);
+    const fe = Object.entries(data)
+      .filter(([k]) => !['success'].includes(k))
+      .flatMap(([, v]) => (Array.isArray(v) ? v : [String(v)]));
+    if (fe.length) return fe.join(' ');
   }
+  return err?.message || 'Something went wrong.';
+}
+
+// ── Delete confirmation modal ─────────────────────────────────────────────────
+function DeleteModal({ onConfirm, onCancel, loading }: {
+  onConfirm: () => void; onCancel: () => void; loading: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 12 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 12 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+        className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+          <Trash2 className="w-5 h-5 text-red-600" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 text-center mb-1">Delete Account</h3>
+        <p className="text-sm text-gray-500 text-center mb-6">
+          This is <strong>permanent</strong>. All your data will be erased and cannot be recovered.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={onCancel}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={onConfirm} disabled={loading}
+            className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2">
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            Yes, delete
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Role badge config — Admin / Guide / Traveler ──────────────────────────────
+const ROLE_BADGE: Record<string, { label: string; className: string }> = {
+  GUIDE:   { label: 'Guide',    className: 'bg-[#D8F3DC] text-[#1B4332]'  },
+  ADMIN:   { label: 'Admin',    className: 'bg-purple-100 text-purple-700' },
+  TOURIST: { label: 'Traveler', className: 'bg-blue-50 text-blue-700'      },
+};
+
+// ── Main ProfilePage ──────────────────────────────────────────────────────────
+interface ProfilePageProps {
+  onNavigate: (view: string) => void;
+}
+
+export function ProfilePage({ onNavigate }: ProfilePageProps) {
+  const authUser    = useAuthStore((s) => s.user);
+  const setUser     = useAuthStore((s) => s.setUser);
+  const storeLogout = useAuthStore((s) => s.logout);
+  const isGuide     = authUser?.role === 'GUIDE';
+
+  const [profile,    setProfile]    = useState<UserProfile | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [fetchErr,   setFetchErr]   = useState('');
+  const [toast,      setToast]      = useState('');
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting,   setDeleting]   = useState(false);
+
+  const [editing,    setEditing]    = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [editErr,    setEditErr]    = useState('');
+
+  const [draftName,  setDraftName]  = useState('');
+  const [draftPhone, setDraftPhone] = useState('');
+  const [draftAddr,  setDraftAddr]  = useState('');
+  const [photoUrl,   setPhotoUrl]   = useState<string | null>(null);
+
+  // ── Fetch ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true); setFetchErr('');
+      try {
+        const res = await apiFetch('/profile/users/me') as any;
+        const u   = res?.data ?? res;
+        setProfile(u);
+        setPhotoUrl(u.photo ?? null);
+        resetDrafts(u);
+      } catch (e: any) {
+        setFetchErr(parseError(e));
+      } finally { setLoading(false); }
+    };
+    load();
+  }, []);
+
+  const resetDrafts = (u: UserProfile) => {
+    setDraftName(u.fullName ?? '');
+    setDraftPhone(u.phoneNumber ?? '');
+    setDraftAddr(u.address ?? '');
+  };
+
+  const flash = (msg: string) => {
+    setToast(msg); setTimeout(() => setToast(''), 2500);
+  };
+
+  // ── Save edits ─────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    setSaving(true); setEditErr('');
+    try {
+      const body: Record<string, string> = {};
+      if (draftName.trim())  body.fullName    = draftName.trim();
+      if (draftPhone.trim()) body.phoneNumber = draftPhone.trim();
+      if (draftAddr.trim())  body.address     = draftAddr.trim();
+
+      const res     = await apiFetch('/profile/users/me', { method: 'PATCH', body: JSON.stringify(body) }) as any;
+      const updated = res?.data ?? res?.user ?? res;
+      setProfile(updated);
+      setUser({ ...authUser!, ...updated });
+      setEditing(false);
+      flash('Profile updated!');
+    } catch (e: any) {
+      setEditErr(parseError(e));
+    } finally { setSaving(false); }
+  };
+
+  const handleCancel = () => {
+    if (profile) resetDrafts(profile);
+    setEditing(false); setEditErr('');
+  };
+
+  // ── Delete account ─────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await apiFetch('/profile/users/me', { method: 'DELETE' });
+      storeLogout();
+      onNavigate('home');
+    } catch (e: any) {
+      flash('Delete failed: ' + parseError(e));
+      setShowDelete(false);
+    } finally { setDeleting(false); }
+  };
+
+  const inputCls = `w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900
+    bg-white focus:outline-none focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/20
+    shadow-[inset_0_1px_3px_rgba(0,0,0,0.05)] transition-all placeholder-gray-400`;
+
+  const readonlyCls = `w-full px-4 py-3 rounded-xl border border-gray-100 text-sm
+    text-gray-500 bg-gray-50 cursor-not-allowed`;
+
+  // ── Loading / error ────────────────────────────────────────────────────────
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[70vh]">
+      <Loader2 className="w-7 h-7 animate-spin text-[#2D6A4F]" />
+    </div>
+  );
+
+  if (fetchErr) return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] gap-3">
+      <AlertCircle className="w-10 h-10 text-red-400" />
+      <p className="text-gray-500 text-sm">{fetchErr}</p>
+    </div>
+  );
+
+  if (!profile) return null;
+
+  const roleBadge = ROLE_BADGE[profile.role] ?? ROLE_BADGE.TOURIST;
 
   return (
-    <div ref={sectionRef} className="min-h-screen bg-[#FDF8F3]">
-      {/* Profile Header */}
-      <div className="bg-white">
-        <div className="section-padding py-8">
+    <>
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            className="max-w-5xl mx-auto"
+            initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-2.5 bg-white border border-[#B7E4C7] rounded-xl shadow-lg text-sm font-medium text-[#1B4332]"
           >
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-              {/* Avatar */}
-              <div className="relative">
-                <img
-                  src={profileUser.avatar}
-                  alt={profileUser.name}
-                  className="w-28 h-28 md:w-36 md:h-36 rounded-full object-cover border-4 border-white shadow-lg"
-                />
-                {profileUser.isVerified && (
-                  <div className="absolute bottom-2 right-2 w-8 h-8 bg-[#2ECC71] rounded-full flex items-center justify-center border-2 border-white">
-                    <CheckCircle className="w-5 h-5 text-white" />
-                  </div>
-                )}
+            <CheckCircle className="w-4 h-4 text-[#2D6A4F]" /> {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete modal */}
+      <AnimatePresence>
+        {showDelete && <DeleteModal onConfirm={handleDelete} onCancel={() => setShowDelete(false)} loading={deleting} />}
+      </AnimatePresence>
+
+      <div className="min-h-screen bg-[#F4F7F5] pt-[68px]">
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+
+          {/* ── Profile Header Card ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6"
+          >
+            <div className="flex items-start gap-5">
+
+              <AvatarUpload
+                photoUrl={photoUrl}
+                fullName={profile.fullName}
+                size={88}
+                onUploaded={(url) => {
+                  setPhotoUrl(url);
+                  setProfile((prev) => prev ? { ...prev, photo: url } : prev);
+                  flash('Photo updated!');
+                }}
+              />
+
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-[#1B4332] leading-tight">{profile.fullName}</h1>
+                <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
+                  <Mail className="w-3.5 h-3.5 flex-shrink-0" /> {profile.email}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-2.5">
+
+                  {/* Role badge: Admin → purple, Guide → green, Traveler → blue */}
+                  <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${roleBadge.className}`}>
+                    <Shield className="w-3 h-3" />
+                    {roleBadge.label}
+                  </span>
+
+                  {profile.verified && (
+                    <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-[#D8F3DC] text-[#2D6A4F]">
+                      <BadgeCheck className="w-3 h-3" /> Verified
+                    </span>
+                  )}
+                  {profile.address && (
+                    <span className="flex items-center gap-1 text-xs text-gray-400">
+                      <MapPin className="w-3 h-3" /> {profile.address}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Info */}
-              <div className="flex-1 text-center md:text-left">
-                <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
-                  <h1 className="font-heading text-2xl md:text-3xl font-bold text-[#2C3E50]">
-                    {profileUser.name}
-                  </h1>
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#FF6B35]/10 text-[#FF6B35] text-sm font-medium rounded-full">
-                    <Award className="w-4 h-4" />
-                    {profileUser.role === 'guide' ? 'Verified Guide' : 'Traveler'}
-                  </span>
-                </div>
-                
-                <p className="text-[#7F8C8D] mb-4">@{profileUser.username}</p>
-                
-                {profileUser.bio && (
-                  <p className="text-[#2C3E50] mb-4 max-w-lg">{profileUser.bio}</p>
-                )}
-
-                <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-[#7F8C8D]">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {profileUser.location || 'Location not set'}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    Joined {new Date(profileUser.joinedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  </span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3">
-                <button className="p-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
-                  <Settings className="w-5 h-5 text-[#7F8C8D]" />
+              {!editing ? (
+                <button onClick={() => setEditing(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#B7E4C7] text-[#2D6A4F] text-sm font-semibold hover:bg-[#D8F3DC] transition-colors flex-shrink-0">
+                  <Edit2 className="w-3.5 h-3.5" /> Edit
                 </button>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-8">
-              {[
-                { label: 'Places Visited', value: profileUser.stats.placesVisited, icon: MapPinned },
-                { label: 'Reports', value: profileUser.stats.reportsSubmitted, icon: FileText },
-                { label: 'Score', value: profileUser.stats.verificationScore, icon: TrendingUp },
-                { label: 'Followers', value: profileUser.followers.length, icon: Users },
-                { label: 'Following', value: profileUser.following.length, icon: Heart },
-              ].map((stat) => {
-                const Icon = stat.icon;
-                return (
-                  <div key={stat.label} className="text-center p-4 bg-[#FDF8F3] rounded-xl">
-                    <Icon className="w-5 h-5 text-[#FF6B35] mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-[#2C3E50]">{stat.value}</p>
-                    <p className="text-xs text-[#7F8C8D]">{stat.label}</p>
-                  </div>
-                );
-              })}
+              ) : (
+                <button onClick={handleCancel}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm font-semibold hover:bg-gray-50 transition-colors flex-shrink-0">
+                  <X className="w-3.5 h-3.5" /> Cancel
+                </button>
+              )}
             </div>
           </motion.div>
-        </div>
-      </div>
 
-      {/* Badges */}
-      <div className="section-padding py-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.1 }}
-          className="max-w-5xl mx-auto"
-        >
-          <h3 className="font-semibold text-[#2C3E50] mb-4">Badges</h3>
-          <div className="flex flex-wrap gap-3">
-            {profileUser.badges.map((badge) => (
-              <div
-                key={badge.id}
-                className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl shadow-sm"
+          {/* ── Edit Form ── */}
+          <AnimatePresence>
+            {editing && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6"
               >
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: `${badge.color}20` }}
-                >
-                  <Award className="w-5 h-5" style={{ color: badge.color }} />
+                <h2 className="text-base font-bold text-[#1B4332] mb-5">Edit Profile</h2>
+
+                {editErr && (
+                  <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {editErr}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+                    <input value={draftName} onChange={(e) => setDraftName(e.target.value)}
+                      placeholder="Your full name" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
+                    <input value={draftPhone} onChange={(e) => setDraftPhone(e.target.value)}
+                      placeholder="98XXXXXXXX" type="tel" className={inputCls} />
+                    <p className="text-xs text-gray-400 mt-1">10 digits, no spaces</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Address</label>
+                    <input value={draftAddr} onChange={(e) => setDraftAddr(e.target.value)}
+                      placeholder="Kathmandu, Nepal" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                      Email <span className="text-xs text-gray-400">(cannot be changed)</span>
+                    </label>
+                    <input value={profile.email} readOnly className={readonlyCls} />
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-[#2C3E50] text-sm">{badge.name}</p>
-                  <p className="text-xs text-[#7F8C8D]">{badge.description}</p>
+
+                <div className="flex gap-3 mt-6">
+                  <button onClick={handleSave} disabled={saving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Changes
+                  </button>
+                  <button onClick={handleCancel}
+                    className="px-5 py-2.5 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+                    Cancel
+                  </button>
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Stats row ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+            className="grid grid-cols-3 gap-3"
+          >
+            {[
+              { label: 'Reports Submitted', value: '12' },
+              { label: 'Places Visited',    value: '28' },
+              { label: 'Community Posts',   value: '45' },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+                <p className="text-2xl sm:text-3xl font-bold text-[#1B4332]">{stat.value}</p>
+                <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
               </div>
             ))}
-          </div>
-        </motion.div>
+          </motion.div>
+
+          {/* ── Guide Profile shortcut (only for guides) ── */}
+          {isGuide && (
+            <motion.button
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
+              onClick={() => onNavigate('guide')}
+              className="w-full bg-white rounded-2xl border border-[#B7E4C7] shadow-sm p-4 flex items-center gap-4 hover:bg-[#F0FBF4] transition-colors text-left group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-[#D8F3DC] flex items-center justify-center flex-shrink-0 group-hover:bg-[#B7E4C7] transition-colors">
+                <Shield className="w-5 h-5 text-[#2D6A4F]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-[#1B4332]">Guide Profile</p>
+                <p className="text-xs text-gray-400 mt-0.5">License, bio & verification status</p>
+              </div>
+              <span className="text-[#2D6A4F] text-xs font-semibold group-hover:translate-x-0.5 transition-transform">View →</span>
+            </motion.button>
+          )}
+
+          {/* ── Danger zone ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}
+            className="bg-white rounded-2xl border border-red-100 shadow-sm p-5 flex items-center justify-between gap-4"
+          >
+            <div>
+              <p className="text-sm font-bold text-gray-800">Delete Account</p>
+              <p className="text-xs text-gray-400 mt-0.5">Permanently remove your account and all data.</p>
+            </div>
+            <button onClick={() => setShowDelete(true)}
+              className="flex-shrink-0 px-4 py-2 rounded-xl border-2 border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 hover:border-red-400 transition-all flex items-center gap-1.5">
+              <Trash2 className="w-3.5 h-3.5" /> Delete
+            </button>
+          </motion.div>
+
+        </div>
       </div>
-
-      {/* Content Tabs */}
-      <div className="section-padding pb-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ delay: 0.2 }}
-          className="max-w-5xl mx-auto"
-        >
-          {/* Tab Buttons */}
-          <div className="flex gap-2 mb-6 border-b border-gray-200">
-            {[
-              { id: 'posts', label: 'My Posts', icon: Camera },
-              { id: 'saved', label: 'Saved Places', icon: Bookmark },
-              { id: 'contributions', label: 'Contributions', icon: FileText },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-6 py-3 font-medium transition-all border-b-2 ${
-                    activeTab === tab.id
-                      ? 'border-[#FF6B35] text-[#FF6B35]'
-                      : 'border-transparent text-[#7F8C8D] hover:text-[#2C3E50]'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Tab Content */}
-          <div>
-            {activeTab === 'posts' && (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {userPosts.length > 0 ? (
-                  userPosts.map((post) => (
-                    <div key={post.id} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                      <img
-                        src={post.images[0]}
-                        alt="Post"
-                        className="w-full h-48 object-cover"
-                      />
-                      <div className="p-4">
-                        <p className="text-sm text-[#2C3E50] line-clamp-2">{post.content}</p>
-                        <div className="flex items-center gap-4 mt-3 text-sm text-[#7F8C8D]">
-                          <span className="flex items-center gap-1">
-                            <Heart className="w-4 h-4" /> {post.likes}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MessageCircle className="w-4 h-4" /> {post.comments.length}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-12">
-                    <Camera className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-[#7F8C8D]">No posts yet</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'saved' && (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {savedPlacesList.length > 0 ? (
-                  savedPlacesList.map((place) => (
-                    <div
-                      key={place.id}
-                      onClick={() => onPlaceClick(place.id)}
-                      className="bg-white rounded-xl overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                    >
-                      <img
-                        src={place.images[0]}
-                        alt={place.name}
-                        className="w-full h-48 object-cover"
-                      />
-                      <div className="p-4">
-                        <h4 className="font-semibold text-[#2C3E50]">{place.name}</h4>
-                        <p className="text-sm text-[#7F8C8D] flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {place.location.city}
-                        </p>
-                        <div className="flex items-center gap-1 mt-2">
-                          <Star className="w-4 h-4 text-[#F7B801] fill-[#F7B801]" />
-                          <span className="text-sm font-medium">{place.rating}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-12">
-                    <Bookmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-[#7F8C8D]">No saved places yet</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'contributions' && (
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-[#7F8C8D]">Your verified reports will appear here</p>
-                <p className="text-sm text-[#7F8C8D] mt-2">
-                  Reports approved: {profileUser.stats.reportsApproved}
-                </p>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </div>
-    </div>
+    </>
   );
 }

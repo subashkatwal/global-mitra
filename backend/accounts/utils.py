@@ -156,3 +156,118 @@ Tourist Alert System Team
     except Exception as e:
         print(f"Error sending welcome email to {user.email}: {str(e)}")
         return False
+    
+def send_guide_verification_approved_email(user):
+    """
+    Send email to guide when admin approves/verifies their profile.
+    
+    Args:
+        user: User instance (must have .guideProfile)
+    
+    Returns:
+        bool: True if sent successfully
+    """
+    try:
+        guide_profile = user.guideProfile
+        
+        subject = '✅ Your Guide Account Has Been Verified! - Tourist Alert System'
+        
+        message = f"""
+Hi {user.fullName},
+
+Great news! 🎉
+
+Your guide account has been **successfully verified** by our admin team.
+
+You can now:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Accept tour bookings
+✓ Create and publish tour packages
+✓ Appear in guide search results
+✓ Receive inquiries from tourists
+
+Your profile is now live and visible to all users.
+
+Profile Details:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+License Number: {guide_profile.licenseNumber}
+Issued By:      {guide_profile.licenseIssuedBy}
+Verified On:    {guide_profile.updatedAt.strftime('%B %d, %Y at %I:%M %p')}
+
+Thank you for joining us in making tourism in Nepal safer and more enjoyable!
+
+If you have any questions, feel free to reply to this email.
+
+Best regards,
+Tourist Alert System Team
+"""
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        return True
+        
+    except Exception as e:
+        print(f"Error sending guide verification email to {user.email}: {str(e)}")
+        return False
+    
+def send_guide_verification_rejected_email(user, reason=""):
+    """
+    Send email to guide when admin rejects their profile verification.
+    
+    Args:
+        user: User instance (must have .guideProfile)
+        reason: Optional rejection reason from admin
+    
+    Returns:
+        bool: True if sent successfully
+    """
+    try:
+        
+        subject = '⚠️ Update on Your Guide Application - Tourist Alert System'
+        
+        reason_text = reason.strip() if reason and reason.strip() else "No specific reason provided. Please review your submitted information and re-apply if needed."
+        
+        message = f"""
+Hi {user.fullName},
+
+Thank you for your interest in becoming a verified guide with Tourist Alert System.
+
+After careful review, we regret to inform you that your guide application has **not been approved** at this time.
+
+Rejection Reason:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{reason_text}
+
+What You Can Do Next:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Review and update your profile information
+• Correct any issues with license documents or details
+• Re-submit your application for another review
+
+You can make changes to your profile at any time and it will be reviewed again.
+
+If you believe this decision was made in error or need clarification, please reply directly to this email.
+
+We appreciate your understanding and look forward to potentially working with you in the future.
+
+Best regards,
+Tourist Alert System Team
+"""
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        return True
+        
+    except Exception as e:
+        print(f"Error sending guide rejection email to {user.email}: {str(e)}")
+        return False
