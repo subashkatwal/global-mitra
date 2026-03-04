@@ -20,6 +20,7 @@ from accounts.views.password_reset import (
     VerifyOTPView,
     ResetPasswordView,
 )
+
 urlpatterns = [
     # Authentication
     path('/register', RegisterView.as_view(), name='register'),
@@ -29,6 +30,7 @@ urlpatterns = [
     path('/logout', LogoutView.as_view(), name='logout'),
     path('/refresh', TokenRefreshView.as_view(), name='token-refresh'),
     path('/me', CurrentUserView.as_view(), name='current-user'),
+
     
     path('/guides/pending', PendingGuidesListView.as_view(), name='pending_guides'),
     path('/guides', AllGuidesListView.as_view(), name='all_guides'),

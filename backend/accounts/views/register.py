@@ -1,4 +1,4 @@
-from django.conf import settings
+
 from django.contrib.auth import get_user_model, authenticate
 
 from rest_framework import generics, permissions, status
@@ -149,9 +149,6 @@ class RegisterView(generics.GenericAPIView):
     },
 )
 class VerifyRegistrationOTPView(generics.GenericAPIView):
-    """
-    Verify registration OTP and activate account
-    """
     serializer_class = VerifyRegistrationOTPSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -167,24 +164,28 @@ class VerifyRegistrationOTPView(generics.GenericAPIView):
             "user": UserSerializer(user).data
         }
         
-        # TOURIST: Provide tokens immediately
         if user.role == 'TOURIST':
-            refresh = RefreshToken.for_user(user)
             response_data["message"] = "Email verified successfully! You can now login."
             
         else:
+            # ── GUIDE: issue tokens so they can hit /profile/complete/guide ──
+            # Account is still inactive (pending admin approval) but they need
+            # a valid JWT to submit their license details.
+            refresh = RefreshToken.for_user(user)
+            response_data["tokens"] = {
+                "access":  str(refresh.access_token),
+                "refresh": str(refresh),
+            }
+            response_data["requiresProfileCompletion"] = True
             response_data["message"] = (
-                "Email verified successfully! Your guide account is pending admin verification. "
-                "You will receive an email notification once your account is approved."
+                "Email verified successfully! Please complete your guide profile."
             )
-            # Send guide notification email
             try:
                 send_welcome_email(user)
             except Exception as e:
                 print(f"Error sending welcome email: {str(e)}")
         
         return Response(response_data, status=status.HTTP_200_OK)
-
 
 @extend_schema(
     tags=['Authentication'],

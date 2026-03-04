@@ -6,11 +6,8 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
-
-from accounts.models import GuideProfile
 from accounts.serializers.users import UserSerializer
-from accounts.serializers.admin_guide import ApproveRejectGuideSerializer, GuideApprovalResponseSerializer
-
+from accounts.serializers.admin_guide import ApproveRejectGuideSerializer
 Users = get_user_model()
 
 

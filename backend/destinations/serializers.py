@@ -18,6 +18,7 @@ class DestinationListSerializer(serializers.ModelSerializer):
             "safetyLevel",
             "duration",
             "createdAt",
+            "image"
         ]
         read_only_fields = ["id", "createdAt"]
 
@@ -47,6 +48,9 @@ class DestinationSerializer(serializers.ModelSerializer):
             "crowdLevel",
             "internetAvailability",
             "createdAt",
+            "image",
+            "district",
+            "country"
         ]
         read_only_fields = ["id", "createdAt"]
 
@@ -125,7 +129,7 @@ class DestinationUploadSerializers(serializers.ModelSerializer):
             'name', 'slug', 'description', 'latitude', 'longitude',
             'averageCost', 'difficulty', 'bestSeason', 'duration',
             'famousLocalItems', 'activities', 'altitude', 'climate',
-            'safetyLevel', 'permitsRequired', 'crowdLevel', 'internetAvailability'
+            'safetyLevel', 'permitsRequired', 'crowdLevel', 'internetAvailability','image','district','country'
         ]
 
     def validate_famousLocalItems(self, value):
