@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Destination
+from ..models import Destination
 import json
 
 class DestinationListSerializer(serializers.ModelSerializer):
