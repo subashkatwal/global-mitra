@@ -66,7 +66,7 @@ export function Footer() {
                   <Compass className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-heading text-2xl font-bold">Global Mitra</h3>
+                  <h3 className="font-heading text-2xl font-bold text-white">Global Mitra</h3>
                   <p className="text-white/60 text-sm">Travel Verified, Memories Shared</p>
                 </div>
               </motion.div>
@@ -79,7 +79,7 @@ export function Footer() {
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-white/70">
                   <MapPin className="w-4 h-4" />
-                  <span className="text-sm">San Francisco, California</span>
+                  <span className="text-sm">Kathmandu, Nepal</span>
                 </div>
                 <div className="flex items-center gap-3 text-white/70">
                   <Mail className="w-4 h-4" />
@@ -87,14 +87,14 @@ export function Footer() {
                 </div>
                 <div className="flex items-center gap-3 text-white/70">
                   <Phone className="w-4 h-4" />
-                  <span className="text-sm">+1 (555) 123-4567</span>
+                  <span className="text-sm">+ 977 9869112964</span>
                 </div>
               </div>
             </div>
 
             {/* Links Columns */}
             <div>
-              <h4 className="font-semibold text-lg mb-4">Platform</h4>
+              <h4 className="font-semibold text-lg mb-4 text-white">Platform</h4>
               <ul className="space-y-3">
                 {footerLinks.platform.map((link) => (
                   <li key={link.label}>
@@ -110,7 +110,7 @@ export function Footer() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-lg mb-4">Community</h4>
+              <h4 className="font-semibold text-lg mb-4 text-white">Community </h4>
               <ul className="space-y-3">
                 {footerLinks.community.map((link) => (
                   <li key={link.label}>
@@ -126,7 +126,7 @@ export function Footer() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-lg mb-4">Support</h4>
+              <h4 className="font-semibold text-lg mb-4 text-white">Support</h4>
               <ul className="space-y-3">
                 {footerLinks.support.map((link) => (
                   <li key={link.label}>

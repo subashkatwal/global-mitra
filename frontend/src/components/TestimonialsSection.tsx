@@ -5,40 +5,40 @@ import { Star, ChevronLeft, ChevronRight, Quote } from 'lucide-react';
 const testimonials = [
   {
     id: 1,
-    name: 'Sarah Chen',
+    name: 'Subash Katwal',
     role: 'Solo Traveler',
-    location: 'San Francisco, CA',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
+    location: 'Bhaktapur,Nepal',
+    avatar: '/images/subash.jpg',
     rating: 5,
     quote: 'Global Mitra transformed how I travel solo. The verified reports gave me confidence to explore places I\'d never consider before. Met amazing people through the community!'
   },
   {
     id: 2,
-    name: 'Marcus Johnson',
+    name: 'Arun Ratgaiyan',
     role: 'Adventure Seeker',
-    location: 'London, UK',
+    location: 'Balkumari,kathmandu',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop',
     rating: 5,
     quote: 'The GPS verification is genius. I know I\'m getting real info from someone who was actually there. Saved me from a closed trail in Nepal!'
   },
   {
     id: 3,
-    name: 'Elena Rodriguez',
+    name: 'Aman Poudel',
     role: 'Family Traveler',
-    location: 'Barcelona, Spain',
+    location: 'Pepsicola,Kathmandu',
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop',
     rating: 5,
     quote: 'Planning family trips used to be stressful. Now I get real-time updates on crowd levels and kid-friendly spots. Game changer for our vacations!'
   },
-  {
-    id: 4,
-    name: 'Yuki Tanaka',
-    role: 'Photography Enthusiast',
-    location: 'Tokyo, Japan',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop',
-    rating: 5,
-    quote: 'Found the most incredible hidden photo spots through this community. The comparison tool helped me plan my entire Asia photography tour efficiently.'
-  }
+  // {
+  //   id: 4,
+  //   name: 'Yuki Tanaka',
+  //   role: 'Photography Enthusiast',
+  //   location: 'Tokyo, Japan',
+  //   avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop',
+  //   rating: 5,
+  //   quote: 'Found the most incredible hidden photo spots through this community. The comparison tool helped me plan my entire Asia photography tour efficiently.'
+  // }
 ];
 
 export function TestimonialsSection() {
@@ -185,7 +185,7 @@ export function TestimonialsSection() {
           </motion.div>
 
           {/* Stats */}
-          <motion.div
+          {/* <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.4 }}
@@ -204,7 +204,7 @@ export function TestimonialsSection() {
                 <div className="text-sm text-[#7F8C8D]">{stat.label}</div>
               </div>
             ))}
-          </motion.div>
+          </motion.div> */}
         </div>
       </div>
     </section>

@@ -1,396 +1,466 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, Shield, MapPin } from 'lucide-react';
+import {
+  X, Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle, Loader2, ChevronDown
+} from 'lucide-react';
 
-// TODO: Backend Integration (Django REST Framework)
-// API Endpoint: POST /api/auth/register/
-// Swagger Documentation: /api/docs/
-// 
-// Expected Request Body:
-// {
-//   "full_name": string,
-//   "email": string,
-//   "password": string,
-//   "role": "tourist" | "guide",
-//   "password_confirm": string
-// }
-//
-// Expected Response:
-// {
-//   "user": {
-//     "id": number,
-//     "email": string,
-//     "full_name": string,
-//     "role": string,
-//     "avatar": string | null
-//   },
-//   "tokens": {
-//     "access": string (JWT),
-//     "refresh": string (JWT)
-//   }
-// }
+import { authApi } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
 
 interface SignupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
-  onLoginClick: () => void; // To switch to login modal
+  onSwitchToLogin: () => void;
+  onGuideProfileNeeded: () => void;
 }
 
-type UserRole = 'tourist' | 'guide';
+type SignupStep = 'form' | 'verify-otp';
 
-export function SignupModal({ isOpen, onClose, onSuccess, onLoginClick }: SignupModalProps) {
+export default function SignupModal({
+  isOpen,
+  onClose,
+  onSwitchToLogin,
+  onGuideProfileNeeded,
+}: SignupModalProps) {
+  const [step,         setStep]         = useState<SignupStep>('form');
+  const [fullName,     setFullName]     = useState('');
+  const [email,        setEmail]        = useState('');
+  const [password,     setPassword]     = useState('');
+  const [role,         setRole]         = useState<'TOURIST' | 'GUIDE'>('TOURIST');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('tourist');
-  
-  // TODO: Replace with actual API call to Django backend
-  // import { authApi } from '@/services/api';
-  
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
+  const [otp,          setOtp]          = useState(['', '', '', '', '', '']);
+  const [isLoading,    setIsLoading]    = useState(false);
+  const [error,        setError]        = useState('');
+  const [success,      setSuccess]      = useState('');
+  const [refreshToken, setRefreshToken] = useState('');
+  const [userId,       setUserId]       = useState<string | null>(null);
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const login                  = useAuthStore((state) => state.login);
+  const setPendingGuideTokens  = useAuthStore((state) => state.setPendingGuideTokens);
+  const setUser                = useAuthStore((state) => state.setUser);
 
-  const resetForm = () => {
-    setFormData({ fullName: '', email: '', password: '', confirmPassword: '' });
-    setSelectedRole('tourist');
-    setError('');
-    setSuccess('');
-    setErrors({});
-  };
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const handleClose = () => {
-    resetForm();
-    onClose();
-  };
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
-    } else if (formData.fullName.length < 2) {
-      newErrors.fullName = 'Name must be at least 2 characters';
+  useEffect(() => {
+    if (isOpen) {
+      setStep('form');
+      setFullName('');
+      setEmail('');
+      setPassword('');
+      setRole('TOURIST');
+      setOtp(['', '', '', '', '', '']);
+      setError('');
+      setSuccess('');
+      setRefreshToken('');
+      setUserId(null);
     }
+  }, [isOpen]);
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Password must contain uppercase, lowercase, and number';
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
+  // ── Step 1: Register ────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    
-    if (!validateForm()) return;
-    
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual Django API integration
-      // const response = await authApi.register({
-      //   full_name: formData.fullName,
-      //   email: formData.email,
-      //   password: formData.password,
-      //   role: selectedRole,
-      //   password_confirm: formData.confirmPassword
-      // });
-      
-      // TODO: Store tokens in localStorage or httpOnly cookies
-      // localStorage.setItem('access_token', response.tokens.access);
-      // localStorage.setItem('refresh_token', response.tokens.refresh);
-      
-      // TODO: Update global auth state with user data
-      // useAuthStore.getState().setUser(response.user);
-      // useAuthStore.getState().setAuthenticated(true);
+      const response = await authApi.register({ fullName, email, password, role });
 
-      // Simulate API call for now
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setSuccess('Account created successfully! Welcome to Global Mitra.');
-      setTimeout(() => {
-        onSuccess();
-        handleClose();
-      }, 1500);
-      
+      if (response.success) {
+        if (response.userId) {
+          setUserId(response.userId);
+        } else {
+          console.warn('Backend did not return userId in response');
+        }
+
+        if (response.tokens?.refresh) {
+          setRefreshToken(response.tokens.refresh);
+        }
+
+        setError('');
+        setSuccess('Registration successful! Please check your email for the OTP.');
+        setStep('verify-otp');
+      } else {
+        setSuccess('');
+        setError(response.message || 'Registration failed');
+      }
     } catch (err: any) {
-      // TODO: Handle specific Django error responses
-      // if (err.response?.data?.email) {
-      //   setError('This email is already registered.');
-      // } else if (err.response?.data?.detail) {
-      //   setError(err.response.data.detail);
-      // }
-      setError('Something went wrong. Please try again.');
+      setSuccess('');
+      const errorMsg =
+        err.response?.data?.message ||
+        err.response?.data?.email?.[0] ||
+        err.response?.data?.detail ||
+        'An error occurred. Please try again.';
+      setError(errorMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ── Step 2: Verify OTP ──────────────────────────────────────────────────────
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setIsLoading(true);
+
+    const otpString = otp.join('');
+
+    if (!userId) {
+      setError('User ID missing. Please try registering again.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await authApi.verifyOtp(userId, otpString, refreshToken);
+
+      if (response.success) {
+        setError('');
+
+        if (role === 'GUIDE') {
+          // Store tokens without marking as fully authenticated —
+          // guide still needs admin approval after profile completion.
+          if (response.tokens) {
+            setPendingGuideTokens(response.tokens);
+          }
+          // Store user so ProfileCompletionModal knows the role
+          if (response.user) {
+            setUser(response.user);
+          }
+
+          setSuccess('Email verified! Please complete your guide profile.');
+          setTimeout(() => {
+            onClose();
+            onGuideProfileNeeded();
+          }, 1200);
+
+        } else {
+          // TOURIST — log in immediately
+          if (response.user && response.tokens) {
+            login(response.user, response.tokens);
+          }
+
+          setSuccess(response.message || 'Account verified! You can now log in.');
+          setTimeout(() => {
+            onClose();
+            onSwitchToLogin();
+          }, 1500);
+        }
+
+      } else {
+        setSuccess('');
+        setError(response.message || 'Invalid OTP');
+      }
+    } catch (err: any) {
+      setSuccess('');
+      const errorMsg =
+        err.response?.data?.otp?.[0] ||
+        err.response?.data?.userId?.[0] ||
+        err.response?.data?.detail ||
+        err.message ||
+        'An error occurred. Please try again.';
+      setError(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ── Resend OTP ──────────────────────────────────────────────────────────────
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await authApi.register({ fullName, email, password, role });
+
+      if (response.tokens?.refresh) setRefreshToken(response.tokens.refresh);
+      if (response.userId)          setUserId(response.userId);
+
+      setError('');
+      setSuccess('New code sent to your email!');
+    } catch (err: any) {
+      setSuccess('');
+      setError(err.response?.data?.message || 'Failed to resend code. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ── OTP input helpers ───────────────────────────────────────────────────────
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    if (value && index < 5) otpRefs.current[index + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').slice(0, 6);
+    const newOtp = [...otp];
+    for (let i = 0; i < pastedData.length; i++) {
+      if (i < 6 && /^\d$/.test(pastedData[i])) newOtp[i] = pastedData[i];
+    }
+    setOtp(newOtp);
+    const nextEmpty = newOtp.findIndex((d) => !d);
+    otpRefs.current[nextEmpty !== -1 ? nextEmpty : 5]?.focus();
+  };
+
+  if (!isOpen) return null;
+
+  const inputStyle = `
+    w-full py-3 sm:py-3.5 px-4 rounded-xl
+    bg-white border border-gray-300
+    shadow-[inset_0_1px_4px_rgba(0,0,0,0.07)]
+    focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/20 focus:shadow-none
+    transition-all duration-200
+    text-gray-900 placeholder-gray-500
+    text-sm sm:text-base
+    outline-none
+  `;
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+          onClick={onClose}
+        >
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-          />
-
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto"
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="relative w-full max-w-[420px] bg-white rounded-2xl shadow-2xl overflow-hidden my-4 sm:my-0"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden my-8">
-              {/* Header */}
-              <div className="relative gradient-primary p-8 text-white">
-                <button
-                  onClick={handleClose}
-                  className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-                
-                <h2 className="font-heading text-2xl font-bold mb-2">
-                  Join Global Mitra
-                </h2>
-                <p className="text-white/80 text-sm">
-                  Start your journey as a {selectedRole === 'guide' ? 'local guide' : 'traveler'}
-                </p>
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 rounded-full hover:bg-gray-100 transition-colors z-10"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+            </button>
+
+            {/* ── Header ── */}
+            <div className="pt-8 sm:pt-10 pb-4 sm:pb-6 px-6 sm:px-10 text-center">
+              <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4 sm:mb-5">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#2D6A4F] to-[#95D5B2] flex items-center justify-center">
+                  <span className="text-white font-bold text-lg sm:text-xl">GM</span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold text-[#1B4332]">Global Mitra</h1>
               </div>
 
-              {/* Form */}
-              <div className="p-8">
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-4 p-3 rounded-xl bg-red-50 text-red-600 text-sm"
-                  >
-                    {error}
-                  </motion.div>
-                )}
+              {step === 'form' && (
+                <>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-[#1B4332] mb-1 sm:mb-2">
+                    Create your account
+                  </h2>
+                  <p className="text-sm sm:text-base text-gray-600">Join the GlobalMitra community</p>
+                </>
+              )}
 
-                {success && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-4 p-3 rounded-xl bg-green-50 text-green-600 text-sm flex items-center gap-2"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    {success}
-                  </motion.div>
-                )}
+              {step === 'verify-otp' && (
+                <>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-[#1B4332] mb-1 sm:mb-2">
+                    Verify your account
+                  </h2>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    We sent a code to{' '}
+                    <span className="font-medium text-[#2D6A4F]">{email}</span>
+                  </p>
+                </>
+              )}
+            </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Role Selection */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-[#2C3E50]">
-                      I want to join as
+            <div className="px-6 sm:px-10 pb-8 sm:pb-10">
+              {error && (
+                <div className="mb-4 sm:mb-5 p-3 sm:p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+              {!error && success && (
+                <div className="mb-4 sm:mb-5 p-3 sm:p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
+                  <span>{success}</span>
+                </div>
+              )}
+
+              {/* ── Step: Registration Form ── */}
+              {step === 'form' && (
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Full Name
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRole('tourist')}
-                        className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
-                          selectedRole === 'tourist'
-                            ? 'border-[#FF6B35] bg-orange-50 text-[#FF6B35]'
-                            : 'border-gray-200 hover:border-gray-300 text-[#7F8C8D]'
-                        }`}
-                      >
-                        <MapPin className="w-5 h-5" />
-                        <div className="text-left">
-                          <div className="font-semibold text-sm">Tourist</div>
-                          <div className="text-xs opacity-70">Explore destinations</div>
-                        </div>
-                      </button>
-                      
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRole('guide')}
-                        className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
-                          selectedRole === 'guide'
-                            ? 'border-[#FF6B35] bg-orange-50 text-[#FF6B35]'
-                            : 'border-gray-200 hover:border-gray-300 text-[#7F8C8D]'
-                        }`}
-                      >
-                        <Shield className="w-5 h-5" />
-                        <div className="text-left">
-                          <div className="font-semibold text-sm">Guide</div>
-                          <div className="text-xs opacity-70">Host experiences</div>
-                        </div>
-                      </button>
-                    </div>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="John Doe"
+                      className={inputStyle}
+                      required
+                    />
                   </div>
 
-                  {/* Full Name */}
-                  <div className="space-y-1">
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Full Name"
-                        value={formData.fullName}
-                        onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                        className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 transition-colors ${
-                          errors.fullName ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-[#FF6B35]'
-                        } focus:outline-none`}
-                      />
-                    </div>
-                    {errors.fullName && (
-                      <p className="text-red-500 text-xs ml-1">{errors.fullName}</p>
-                    )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Email address
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className={inputStyle}
+                      required
+                    />
                   </div>
 
-                  {/* Email */}
-                  <div className="space-y-1">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Password
+                    </label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="email"
-                        placeholder="Email address"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 transition-colors ${
-                          errors.email ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-[#FF6B35]'
-                        } focus:outline-none`}
-                      />
-                    </div>
-                    {errors.email && (
-                      <p className="text-red-500 text-xs ml-1">{errors.email}</p>
-                    )}
-                  </div>
-
-                  {/* Password */}
-                  <div className="space-y-1">
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <input
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="Password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 transition-colors ${
-                          errors.password ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-[#FF6B35]'
-                        } focus:outline-none`}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Create a password"
+                        className={`${inputStyle} pr-11`}
+                        required
+                        minLength={8}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                       >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     </div>
-                    {errors.password && (
-                      <p className="text-red-500 text-xs ml-1">{errors.password}</p>
-                    )}
-                    <p className="text-xs text-gray-400 ml-1">
-                      Must be at least 8 characters with uppercase, lowercase, and number
-                    </p>
                   </div>
 
-                  {/* Confirm Password */}
-                  <div className="space-y-1">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      I am a...
+                    </label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="Confirm Password"
-                        value={formData.confirmPassword}
-                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                        className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 transition-colors ${
-                          errors.confirmPassword ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-[#FF6B35]'
-                        } focus:outline-none`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      <select
+                        value={role}
+                        onChange={(e) => setRole(e.target.value as 'TOURIST' | 'GUIDE')}
+                        className={`${inputStyle} appearance-none pr-10 cursor-pointer`}
+                        required
                       >
-                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
+                        <option value="TOURIST">Tourist — I'm exploring</option>
+                        <option value="GUIDE">Guide — I'm a local expert</option>
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-500 pointer-events-none" />
                     </div>
-                    {errors.confirmPassword && (
-                      <p className="text-red-500 text-xs ml-1">{errors.confirmPassword}</p>
-                    )}
                   </div>
 
-                  {/* Submit Button */}
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-3 rounded-xl gradient-primary text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                    className="w-full py-3 sm:py-3.5 bg-[#2D6A4F] hover:bg-[#1f4e38] text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 text-sm sm:text-base"
                   >
                     {isLoading ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Creating account...
-                      </span>
+                      <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      `Create ${selectedRole === 'guide' ? 'Guide' : 'Tourist'} Account`
+                      <>
+                        Create Account
+                        <ArrowRight size={16} />
+                      </>
                     )}
                   </button>
                 </form>
+              )}
 
-                {/* Login Link */}
-                <div className="mt-6 text-center text-sm">
-                  <p className="text-[#7F8C8D]">
-                    Already have an account?{' '}
+              {/* ── Step: OTP Verification ── */}
+              {step === 'verify-otp' && (
+                <form onSubmit={handleVerifyOtp} className="space-y-4 sm:space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3 text-center">
+                      Enter 6-digit code
+                    </label>
+                    <div className="flex justify-center gap-2 sm:gap-3">
+                      {otp.map((digit, index) => (
+                        <input
+                          key={index}
+                          ref={(el) => { otpRefs.current[index] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(index, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                          onPaste={handleOtpPaste}
+                          className="w-10 h-10 sm:w-14 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl border-2 border-gray-300 focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/20 outline-none transition-all"
+                          style={{ borderColor: digit ? '#2D6A4F' : '#D1D5DB' }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading || otp.some((d) => !d)}
+                    className="w-full py-3 sm:py-3.5 bg-[#2D6A4F] hover:bg-[#1f4e38] text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 text-sm sm:text-base"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        Verify Account
+                        <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center mt-3 sm:mt-4">
                     <button
-                      onClick={() => {
-                        handleClose();
-                        onLoginClick();
-                      }}
-                      className="text-[#FF6B35] font-semibold hover:underline"
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={isLoading}
+                      className="text-sm text-[#2D6A4F] hover:underline font-medium disabled:opacity-60"
                     >
-                      Sign in
+                      Resend code
                     </button>
-                  </p>
-                </div>
+                  </div>
+                </form>
+              )}
 
-                {/* Terms */}
-                <p className="mt-4 text-xs text-center text-gray-400">
-                  By signing up, you agree to our{' '}
-                  <a href="#" className="text-[#FF6B35] hover:underline">Terms of Service</a>
-                  {' '}and{' '}
-                  <a href="#" className="text-[#FF6B35] hover:underline">Privacy Policy</a>
-                </p>
-              </div>
+              {step === 'form' && (
+                <div className="mt-5 sm:mt-6 pt-4 border-t text-center text-sm text-gray-600">
+                  Already have an account?{' '}
+                  <button
+                    onClick={onSwitchToLogin}
+                    className="text-[#2D6A4F] font-medium hover:underline"
+                  >
+                    Sign in
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   );
