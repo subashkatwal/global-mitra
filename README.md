@@ -10,15 +10,16 @@ A full-stack travel safety platform for tourists and trekking guides in Nepal. U
 2. [Technology Stack](#2-technology-stack)
 3. [Project Structure](#3-project-structure)
 4. [Setup and Installation](#4-setup-and-installation)
-5. [Environment Variables](#5-environment-variables)
-6. [User Roles](#6-user-roles)
-7. [Authentication and User Management](#7-authentication-and-user-management)
-8. [Explore Destinations](#8-explore-destinations)
-9. [Social Features](#9-social-features)
-10. [Incident Reporting System](#10-incident-reporting-system)
-11. [Admin Dashboard](#11-admin-dashboard)
-12. [API Endpoints](#12-api-endpoints)
-13. [Limitations and Future Work](#13-limitations-and-future-work)
+5. [Docker](#5-docker)
+6. [Environment Variables](#6-environment-variables)
+7. [User Roles](#7-user-roles)
+8. [Authentication and User Management](#8-authentication-and-user-management)
+9. [Explore Destinations](#9-explore-destinations)
+10. [Social Features](#10-social-features)
+11. [Incident Reporting System](#11-incident-reporting-system)
+12. [Admin Dashboard](#12-admin-dashboard)
+13. [API Endpoints](#13-api-endpoints)
+14. [Limitations and Future Work](#14-limitations-and-future-work)
 
 ---
 
@@ -52,6 +53,7 @@ The core innovation is the AI incident alert engine. It uses TF-IDF to extract k
 | Email | Django SMTP (Gmail) | OTP delivery and notifications |
 | Frontend | React + Vite | User interface |
 | CORS | django-corsheaders | Frontend-backend communication |
+| Containerisation | Docker + Docker Compose | Consistent dev and production environment |
 
 ---
 
@@ -59,7 +61,9 @@ The core innovation is the AI incident alert engine. It uses TF-IDF to extract k
 
 ```
 GlobalMitra/
+├── docker-compose.yml
 ├── backend/
+│   ├── Dockerfile
 │   ├── accounts/           # Auth, User model, OTP, JWT
 │   │   ├── models.py       # Custom User, GuideProfile, PasswordResetOTP
 │   │   ├── views/          # Register, Login, OTP, Password reset
@@ -90,6 +94,7 @@ GlobalMitra/
 │   └── manage.py
 │
 └── frontend/               # React + Vite
+    └── Dockerfile
 ```
 
 ---
@@ -98,23 +103,42 @@ GlobalMitra/
 
 ### Prerequisites
 
+- Docker and Docker Compose installed
+- Git
+
+Clone the repository:
+
+```bash
+git clone https://github.com/your-username/globalmitra.git
+cd globalmitra
+```
+
+Copy the environment file and fill in your values:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Then follow the Docker section below to start everything.
+
+If you prefer to run without Docker, you need:
+
 - Python 3.11+
 - Microsoft SQL Server with ODBC Driver 18
 - Node.js 18+
 
-### Backend
+### Manual Backend Setup (without Docker)
 
 ```bash
 cd backend
 pip install -r requirements.txt
-cp .env.example .env
 python manage.py makemigrations
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
 ```
 
-### Frontend
+### Manual Frontend Setup (without Docker)
 
 ```bash
 cd frontend
@@ -122,30 +146,146 @@ npm install
 npm run dev
 ```
 
-The frontend runs on `http://localhost:5173` and the backend on `http://localhost:8000`.
+---
 
-API documentation is available at `http://localhost:8000/api/docs`
+## 5. Docker
 
-### Required Python Packages
+The entire application runs with a single command. Docker Compose starts the backend, frontend, and database together.
 
+### Start Everything
+
+```bash
+docker-compose up
 ```
-django
-djangorestframework
-scikit-learn
-numpy
-djangorestframework-simplejwt
-django-cors-headers
-drf-spectacular
-django-filter
-mssql-django
-python-decouple
+
+### Start in Detached Mode (background)
+
+```bash
+docker-compose up -d
+```
+
+### Stop All Services
+
+```bash
+docker-compose down
+```
+
+### Stop and Remove Volumes (wipes database data)
+
+```bash
+docker-compose down -v
+```
+
+### Rebuild Images After Code Changes
+
+```bash
+docker-compose up --build
+```
+
+### Rebuild a Specific Service
+
+```bash
+docker-compose up --build backend
+docker-compose up --build frontend
 ```
 
 ---
 
-## 5. Environment Variables
+### Running Django Management Commands
 
-Create a `.env` file in the `backend/` directory:
+Open a shell inside the running backend container:
+
+```bash
+docker-compose exec backend bash
+```
+
+From inside the container you can run any Django command:
+
+```bash
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py makemigrations
+python manage.py collectstatic
+python manage.py shell
+```
+
+Or run a command directly without opening a shell:
+
+```bash
+docker-compose exec backend python manage.py migrate
+docker-compose exec backend python manage.py createsuperuser
+docker-compose exec backend python manage.py makemigrations
+docker-compose exec backend python manage.py collectstatic --noinput
+```
+
+---
+
+### Database Commands
+
+Open an interactive SQL Server session:
+
+```bash
+docker-compose exec db /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P your-db-password
+```
+
+---
+
+### Viewing Logs
+
+View logs for all services:
+
+```bash
+docker-compose logs
+```
+
+Follow live logs for a specific service:
+
+```bash
+docker-compose logs -f backend
+docker-compose logs -f frontend
+docker-compose logs -f db
+```
+
+---
+
+### Checking Running Containers
+
+```bash
+docker-compose ps
+```
+
+---
+
+### Installing a New Package Inside the Container
+
+If you add a package to `requirements.txt` and want to install it without rebuilding:
+
+```bash
+docker-compose exec backend pip install <package-name>
+```
+
+To make it permanent, add it to `requirements.txt` and rebuild:
+
+```bash
+docker-compose up --build backend
+```
+
+---
+
+### Service URLs (after docker-compose up)
+
+| Service | URL |
+|---|---|
+| Backend API | http://localhost:8000 |
+| API Documentation | http://localhost:8000/api/docs |
+| Django Admin | http://localhost:8000/admin |
+| Frontend | http://localhost:5173 |
+
+---
+
+## 6. Environment Variables
+
+Create a `.env` file in the `backend/` directory before running Docker:
 
 ```
 DJANGO_SECRET_KEY=your-secret-key-here
@@ -155,7 +295,7 @@ ALLOWED_HOSTS=*
 DB_NAME=GlobalMitraDB
 DB_USER=sa
 DB_PASSWORD=your-db-password
-DB_HOST=localhost
+DB_HOST=db
 DB_PORT=1433
 
 EMAIL_HOST_USER=your-gmail@gmail.com
@@ -165,9 +305,11 @@ DEFAULT_FROM_EMAIL=your-gmail@gmail.com
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
+Note: When using Docker Compose, `DB_HOST` should be set to `db` (the service name in docker-compose.yml), not `localhost`.
+
 ---
 
-## 6. User Roles
+## 7. User Roles
 
 There are three user roles in GlobalMitra.
 
@@ -192,7 +334,7 @@ There are three user roles in GlobalMitra.
 
 ---
 
-## 7. Authentication and User Management
+## 8. Authentication and User Management
 
 ### Registration and OTP Verification
 
@@ -201,6 +343,17 @@ There are three user roles in GlobalMitra.
 3. User submits the OTP to verify their account
 4. Unverified accounts cannot log in
 
+### JWT Login
+
+- `POST /api/v1/auth/login` returns an access token (valid 2 hours) and a refresh token (valid 7 days)
+- All protected endpoints require the header: `Authorization: Bearer <access_token>`
+- `POST /api/v1/auth/token/refresh` rotates the access token without re-login
+
+### Password Reset
+
+1. `POST /api/v1/auth/forgot-password` sends a reset OTP to the registered email
+2. The OTP is stored as a SHA-256 hash
+3. `POST /api/v1/auth/reset-password` validates the OTP and updates the password
 
 ### Guide Profile Verification
 
@@ -208,7 +361,7 @@ Guides submit a GuideProfile with their license number and issuing authority. An
 
 ---
 
-## 8. Explore Destinations
+## 9. Explore Destinations
 
 The destinations module provides a catalog of Nepal's trekking routes to help tourists make informed travel decisions.
 
@@ -235,7 +388,7 @@ Users can compare two destinations side by side. The comparison endpoint returns
 
 ---
 
-## 9. Social Features
+## 10. Social Features
 
 The socials module adds a community layer to the platform, allowing tourists and guides to share experiences and knowledge.
 
@@ -248,7 +401,7 @@ The socials module adds a community layer to the platform, allowing tourists and
 
 ---
 
-## 10. Incident Reporting System
+## 11. Incident Reporting System
 
 This is the core feature of GlobalMitra. When a report is submitted, a Django post_save signal triggers the TF-IDF + DBSCAN clustering algorithm synchronously. The algorithm groups similar reports together, scores their confidence, and either notifies the admin or auto-broadcasts an alert depending on the result.
 
@@ -356,7 +509,7 @@ triggerType (MANUAL / AUTO), broadcastedBy, broadcastTime
 
 ---
 
-## 11. Admin Dashboard
+## 12. Admin Dashboard
 
 ### Cluster Management
 
@@ -376,14 +529,58 @@ triggerType (MANUAL / AUTO), broadcastedBy, broadcastTime
 - Approve or decline guide status with an optional reason
 - Approved guides immediately gain 1.5x trust weight in all future algorithm runs
 
-
 ---
 
-## 12. API Endpoints
+## 13. API Endpoints
 
 Full interactive documentation: `http://localhost:8000/api/docs`
 
-## 13. Limitations and Future Work
+### Authentication
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /api/v1/auth/register | Register new user |
+| POST | /api/v1/auth/login | Login, returns JWT pair |
+| POST | /api/v1/auth/token/refresh | Refresh access token |
+| POST | /api/v1/auth/verify-otp | Verify email OTP |
+| POST | /api/v1/auth/forgot-password | Send reset OTP to email |
+| POST | /api/v1/auth/reset-password | Reset password with OTP token |
+
+### Incident Reports
+
+| Method | Endpoint | Role | Description |
+|---|---|---|---|
+| POST | /api/v1/reports/submit | Tourist / Guide | Submit new incident report |
+| GET | /api/v1/reports/my | Tourist / Guide | View own submitted reports |
+| GET | /api/v1/reports/alerts | All | View active alert broadcasts |
+| GET | /api/v1/reports/admin/clusters | Admin | View clusters pending review |
+| POST | /api/v1/reports/admin/clusters/\<id\>/verify | Admin | Confirm or reject a cluster |
+| GET | /api/v1/reports/admin/reports | Admin | View all reports with status filter |
+| GET | /api/v1/reports/notifications | All | Fetch unread notifications |
+| POST | /api/v1/reports/notifications/read | All | Mark all notifications as read |
+
+### Destinations
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/v1/destinations/ | List all destinations |
+| GET | /api/v1/destinations/\<slug\>/ | Get destination details |
+| GET | /api/v1/destinations/compare/ | Compare two destinations |
+
+### Social Features
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET / POST | /api/v1/socials/posts/ | List feed or create post |
+| GET / PATCH / DELETE | /api/v1/socials/posts/\<id\>/ | View, edit, or delete post |
+| POST | /api/v1/socials/posts/\<id\>/comment/ | Add comment to post |
+| POST | /api/v1/socials/posts/\<id\>/react/ | React to post |
+| POST | /api/v1/socials/posts/\<id\>/bookmark/ | Bookmark or unbookmark post |
+| GET | /api/v1/socials/bookmarks/ | List all bookmarked posts |
+
+---
+
+## 14. Limitations and Future Work
 
 ### Current Limitations
 
@@ -411,5 +608,5 @@ Full interactive documentation: `http://localhost:8000/api/docs`
 ---
 
 *GlobalMitra - Final Year Project. Built with Django, scikit-learn, and React for the safety of Nepal's trekking community.*
-**Author**: Subash Katwal
 
+**Author**: Subash Katwal
