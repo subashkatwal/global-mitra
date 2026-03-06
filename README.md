@@ -18,8 +18,7 @@ A full-stack travel safety platform for tourists and trekking guides in Nepal. U
 10. [Incident Reporting System](#10-incident-reporting-system)
 11. [Admin Dashboard](#11-admin-dashboard)
 12. [API Endpoints](#12-api-endpoints)
-13. [Test Scenarios](#13-test-scenarios)
-14. [Limitations and Future Work](#14-limitations-and-future-work)
+13. [Limitations and Future Work](#13-limitations-and-future-work)
 
 ---
 
@@ -384,7 +383,7 @@ triggerType (MANUAL / AUTO), broadcastedBy, broadcastTime
 
 Full interactive documentation: `http://localhost:8000/api/docs`
 
-## 14. Limitations and Future Work
+## 13. Limitations and Future Work
 
 ### Current Limitations
 
@@ -413,3 +412,4 @@ Full interactive documentation: `http://localhost:8000/api/docs`
 
 *GlobalMitra - Final Year Project. Built with Django, scikit-learn, and React for the safety of Nepal's trekking community.*
 **Author**: Subash Katwal
+
