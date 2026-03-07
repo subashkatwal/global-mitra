@@ -1,14 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from accounts.models import User, GuideProfile, PasswordResetOTP
-from destinations.models import Destination
-from socials.models import Post, Comment, Bookmark, Share
-from reports.models import IncidentReport, AlertBroadcast
+# from destinations.models import Destination
+# from socials.models import Post, Comment, Bookmark, Share
+# from reports.models import IncidentReport, AlertBroadcast
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('id','email', 'fullName', 'role', 'is_active', 'is_staff', 'is_superuser')
+    list_display = ('id','email', 'fullName', 'role', 'is_active', 'is_staff', 'is_superuser','verified')
     list_filter = ('role', 'is_staff', 'is_superuser', 'is_active')
     search_fields = ('id','email', 'fullName', 'phoneNumber')
     ordering = ('email',)
