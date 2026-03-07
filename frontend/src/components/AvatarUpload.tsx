@@ -1,17 +1,13 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Loader2, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { Camera, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { apiFetch } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 
 interface AvatarUploadProps {
-  /** Current resolved photo URL (absolute) or null */
   photoUrl: string | null;
-  /** User's full name — used for the initial fallback letter */
   fullName: string;
-  /** Size in px — applied to both width and height */
   size?: number;
-  /** Called with the new absolute photo URL after a successful upload */
   onUploaded: (newUrl: string) => void;
 }
 
@@ -28,13 +24,12 @@ export function AvatarUpload({ photoUrl, fullName, size = 96, onUploaded }: Avat
   const initial = fullName?.charAt(0)?.toUpperCase() ?? 'U';
   const displayUrl = preview ?? photoUrl;
 
-  // ── Open gallery ──────────────────────────────────────────────────────────
+
   const openGallery = () => {
     setError('');
     fileInputRef.current?.click();
   };
 
-  // ── File selected ─────────────────────────────────────────────────────────
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -54,7 +49,6 @@ export function AvatarUpload({ photoUrl, fullName, size = 96, onUploaded }: Avat
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
 
-    // Upload
     setUploading(true);
     setError('');
     setSuccess(false);
@@ -63,11 +57,10 @@ export function AvatarUpload({ photoUrl, fullName, size = 96, onUploaded }: Avat
       const formData = new FormData();
       formData.append('photo', file);
 
-      // apiFetch with FormData — do NOT set Content-Type (browser sets multipart boundary)
       const res = await apiFetch('/profile/users/me/photo', {
         method: 'POST',
         body:   formData,
-        // signal: omit Content-Type so browser sets multipart/form-data with boundary
+  
       }) as any;
 
       const newUrl = res?.photo ?? res?.data?.photo ?? objectUrl;
@@ -83,7 +76,7 @@ export function AvatarUpload({ photoUrl, fullName, size = 96, onUploaded }: Avat
       setPreview(null);   // revert preview
     } finally {
       setUploading(false);
-      // Reset input so same file can be re-selected after an error
+    
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };

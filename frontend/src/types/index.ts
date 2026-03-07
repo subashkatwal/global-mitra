@@ -7,7 +7,7 @@ export interface User {
   fullName: string;
   username: string;
   role: UserRole;
-  isVerified: boolean;
+  verified: boolean;
   isActive: boolean;
   photo?: string;
   createdAt: string;
