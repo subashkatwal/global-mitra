@@ -6,15 +6,20 @@ from .models import Post, Comment, Bookmark, Share
 class CommentSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     userPhoto = serializers.SerializerMethodField()
-    postId = serializers.UUIDField(source='post.id', read_only=True)
+    postId = serializers.UUIDField(source="post.id", read_only=True)
 
     class Meta:
         model = Comment
         fields = [
-            'id', 'postId', 'full_name', 'userPhoto',
-            'textContent', 'image', 'createdAt'
+            "id",
+            "postId",
+            "full_name",
+            "userPhoto",
+            "textContent",
+            "image",
+            "createdAt",
         ]
-        read_only_fields = ['id', 'postId', 'full_name', 'userPhoto', 'createdAt']
+        read_only_fields = ["id", "postId", "full_name", "userPhoto", "createdAt"]
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_full_name(self, obj):
@@ -27,10 +32,14 @@ class CommentSerializer(serializers.ModelSerializer):
     def get_userPhoto(self, obj):
         if not obj.user:
             return None
-        request = self.context.get('request')
-        if hasattr(obj.user, 'photo') and obj.user.photo:
-            return request.build_absolute_uri(obj.user.photo.url) if request else obj.user.photo.url
-        if hasattr(obj.user, 'profile_image') and obj.user.profile_image:
+        request = self.context.get("request")
+        if hasattr(obj.user, "photo") and obj.user.photo:
+            return (
+                request.build_absolute_uri(obj.user.photo.url)
+                if request
+                else obj.user.photo.url
+            )
+        if hasattr(obj.user, "profile_image") and obj.user.profile_image:
             return obj.user.profile_image
         return None
 
@@ -47,12 +56,26 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = [
-            'id', 'full_name', 'userPhoto', 'textContent', 'image',
-            'commentCount', 'likeCount', 'shareCount', 'isBookmarked', 'createdAt'
+            "id",
+            "full_name",
+            "userPhoto",
+            "textContent",
+            "image",
+            "commentCount",
+            "likeCount",
+            "shareCount",
+            "isBookmarked",
+            "createdAt",
         ]
         read_only_fields = [
-            'id', 'full_name', 'userPhoto',
-            'commentCount', 'likeCount', 'shareCount', 'isBookmarked', 'createdAt'
+            "id",
+            "full_name",
+            "userPhoto",
+            "commentCount",
+            "likeCount",
+            "shareCount",
+            "isBookmarked",
+            "createdAt",
         ]
 
     @extend_schema_field(serializers.CharField(allow_null=True))
@@ -66,10 +89,14 @@ class PostSerializer(serializers.ModelSerializer):
     def get_userPhoto(self, obj):
         if not obj.user:
             return None
-        request = self.context.get('request')
-        if hasattr(obj.user, 'photo') and obj.user.photo:
-            return request.build_absolute_uri(obj.user.photo.url) if request else obj.user.photo.url
-        if hasattr(obj.user, 'profile_image') and obj.user.profile_image:
+        request = self.context.get("request")
+        if hasattr(obj.user, "photo") and obj.user.photo:
+            return (
+                request.build_absolute_uri(obj.user.photo.url)
+                if request
+                else obj.user.photo.url
+            )
+        if hasattr(obj.user, "profile_image") and obj.user.profile_image:
             return obj.user.profile_image
         return None
 
@@ -87,13 +114,13 @@ class PostSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.BooleanField())
     def get_isBookmarked(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         if request and request.user.is_authenticated:
             return obj.bookmarkedBy.filter(user=request.user).exists()
         return False
 
     def create(self, validated_data):
-        request = self.context.get('request')
+        request = self.context.get("request")
         return Post.objects.create(user=request.user, **validated_data)
 
 
@@ -103,8 +130,8 @@ class ShareSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Share
-        fields = ['id', 'full_name', 'platform', 'shareUrl', 'createdAt']
-        read_only_fields = ['id', 'full_name', 'createdAt']
+        fields = ["id", "full_name", "platform", "shareUrl", "createdAt"]
+        read_only_fields = ["id", "full_name", "createdAt"]
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_full_name(self, obj):
@@ -115,7 +142,7 @@ class ShareSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_shareUrl(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         if request:
             return request.build_absolute_uri(f"/api/socials/posts/{obj.post.id}/")
         return None
