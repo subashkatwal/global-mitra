@@ -6,31 +6,42 @@ from accounts.models import GuideProfile
 User = get_user_model()
 
 
-# ── User serializers ──────────────────────────────────────────────────────────
-
 class UserProfileSerializer(serializers.ModelSerializer):
     """Read-only profile returned on GET /profile/users/me"""
 
-    # Returns absolute URL (e.g. http://localhost:8000/media/profile_photos/x.jpg)
-    # Falls back gracefully if request context is not provided
     photo = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'username', 'fullName', 'phoneNumber',
-            'photo', 'address', 'role', 'verified', 'isActive',
-            'createdAt', 'updatedAt'
+            "id",
+            "email",
+            "username",
+            "fullName",
+            "phoneNumber",
+            "photo",
+            "address",
+            "role",
+            "verified",
+            "isActive",
+            "createdAt",
+            "updatedAt",
         ]
         read_only_fields = [
-            'id', 'email', 'username', 'role', 'verified',
-            'isActive', 'createdAt', 'updatedAt'
+            "id",
+            "email",
+            "username",
+            "role",
+            "verified",
+            "isActive",
+            "createdAt",
+            "updatedAt",
         ]
 
     def get_photo(self, obj):
         if not obj.photo:
             return None
-        request = self.context.get('request')
+        request = self.context.get("request")
         if request:
             return request.build_absolute_uri(obj.photo.url)
         return obj.photo.url
@@ -49,17 +60,17 @@ class UpdateUserProfileSerializer(serializers.ModelSerializer):
         allow_null=True,
         validators=[
             RegexValidator(
-                regex=r'^\d{10}$',
-                message='Phone number must be exactly 10 digits.',
-                code='invalid_phone'
+                regex=r"^\d{10}$",
+                message="Phone number must be exactly 10 digits.",
+                code="invalid_phone",
             )
-        ]
+        ],
     )
     address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = User
-        fields = ['fullName', 'phoneNumber', 'address']
+        fields = ["fullName", "phoneNumber", "address"]
 
     def validate_phoneNumber(self, value):
         if not value:
@@ -69,8 +80,6 @@ class UpdateUserProfileSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("This phone number is already in use.")
         return value
 
-
-# ── Guide serializers ─────────────────────────────────────────────────────────
 
 class GuideProfileDetailSerializer(serializers.ModelSerializer):
     """
@@ -83,12 +92,22 @@ class GuideProfileDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = GuideProfile
         fields = [
-            'id', 'user', 'licenseNumber', 'licenseIssuedBy',
-            'verificationStatus', 'bio', 'createdAt', 'updatedAt'
+            "id",
+            "user",
+            "licenseNumber",
+            "licenseIssuedBy",
+            "verificationStatus",
+            "bio",
+            "createdAt",
+            "updatedAt",
         ]
         read_only_fields = [
-            'id', 'user', 'verificationStatus', 'licenseNumber',
-            'createdAt', 'updatedAt'
+            "id",
+            "user",
+            "verificationStatus",
+            "licenseNumber",
+            "createdAt",
+            "updatedAt",
         ]
 
 
@@ -101,25 +120,25 @@ class UpdateGuideProfileSerializer(serializers.ModelSerializer):
     """
 
     # User fields proxied through this serializer
-    fullName    = serializers.CharField(required=False)
+    fullName = serializers.CharField(required=False)
     phoneNumber = serializers.CharField(
         required=False,
         allow_blank=True,
         allow_null=True,
         validators=[
             RegexValidator(
-                regex=r'^\d{10}$',
-                message='Phone number must be exactly 10 digits.',
-                code='invalid_phone'
+                regex=r"^\d{10}$",
+                message="Phone number must be exactly 10 digits.",
+                code="invalid_phone",
             )
-        ]
+        ],
     )
     # Accept file upload for photo
     photo = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = GuideProfile
-        fields = ['bio', 'licenseIssuedBy', 'fullName', 'phoneNumber', 'photo']
+        fields = ["bio", "licenseIssuedBy", "fullName", "phoneNumber", "photo"]
 
     def validate_phoneNumber(self, value):
         if not value:
@@ -130,22 +149,19 @@ class UpdateGuideProfileSerializer(serializers.ModelSerializer):
         return value
 
     def update(self, instance, validated_data):
-        # ── Extract user fields ───────────────────────────────────────────────
         user_fields = {}
-        for field in ['fullName', 'phoneNumber', 'photo']:
+        for field in ["fullName", "phoneNumber", "photo"]:
             if field in validated_data:
                 user_fields[field] = validated_data.pop(field)
 
-        # ── Update GuideProfile fields (bio, licenseIssuedBy) ─────────────────
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # ── Update User fields ────────────────────────────────────────────────
         if user_fields:
             user = instance.user
             # Delete old photo file before replacing
-            if 'photo' in user_fields and user.photo:
+            if "photo" in user_fields and user.photo:
                 try:
                     user.photo.delete(save=False)
                 except Exception:
@@ -157,16 +173,21 @@ class UpdateGuideProfileSerializer(serializers.ModelSerializer):
         return instance
 
 
-# ── Admin serializers ─────────────────────────────────────────────────────────
-
 class AdminUserListSerializer(serializers.ModelSerializer):
     """Admin: list all users (no photo — keeps response lean)"""
 
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'username', 'fullName', 'phoneNumber',
-            'role', 'verified', 'isActive', 'createdAt'
+            "id",
+            "email",
+            "username",
+            "fullName",
+            "phoneNumber",
+            "role",
+            "verified",
+            "isActive",
+            "createdAt",
         ]
 
 
@@ -178,32 +199,71 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'username', 'fullName', 'phoneNumber', 'photo',
-            'role', 'verified', 'isActive', 'createdAt', 'updatedAt'
+            "id",
+            "email",
+            "username",
+            "fullName",
+            "phoneNumber",
+            "photo",
+            "role",
+            "verified",
+            "isActive",
+            "createdAt",
+            "updatedAt",
         ]
-        read_only_fields = ['id', 'email', 'username', 'createdAt', 'updatedAt']
+        read_only_fields = ["id", "username", "createdAt", "updatedAt"]
 
     def get_photo(self, obj):
         if not obj.photo:
             return None
-        request = self.context.get('request')
+        request = self.context.get("request")
         if request:
             return request.build_absolute_uri(obj.photo.url)
         return obj.photo.url
+
+    def validate_email(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("Email is required.")
+        qs = User.objects.filter(email=value.lower().strip())
+        # Exclude current instance on update
+        if self.instance:
+            qs = qs.exclude(id=self.instance.id)
+        if qs.exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value.lower().strip()
 
 
 class AdminGuideProfileListSerializer(serializers.ModelSerializer):
     """Admin: list all guide profiles"""
 
-    userEmail    = serializers.EmailField(source='user.email',    read_only=True)
-    userFullName = serializers.CharField(source='user.fullName',  read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    fullName = serializers.CharField(source="user.fullName", read_only=True)
+    userPhoto = serializers.SerializerMethodField()
+    userId = serializers.UUIDField(source="user.id", read_only=True)
 
     class Meta:
         model = GuideProfile
         fields = [
-            'id', 'userEmail', 'userFullName', 'licenseNumber',
-            'verificationStatus', 'createdAt'
+            "id",
+            "email",
+            "fullName",
+            "licenseNumber",
+            "verificationStatus",
+            "createdAt",
+            "licenseIssuedBy",
+            "userPhoto",
+           "userId",
         ]
+
+    def get_userPhoto(self, obj):
+        if not obj.user.photo:
+            return None
+        request = self.context.get("request")
+        return (
+            request.build_absolute_uri(obj.user.photo.url)
+            if request
+            else obj.user.photo.url
+        )
 
 
 class AdminGuideProfileDetailSerializer(serializers.ModelSerializer):
@@ -214,7 +274,13 @@ class AdminGuideProfileDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = GuideProfile
         fields = [
-            'id', 'user', 'licenseNumber', 'licenseIssuedBy',
-            'verificationStatus', 'bio', 'createdAt', 'updatedAt'
+            "id",
+            "user",
+            "licenseNumber",
+            "licenseIssuedBy",
+            "verificationStatus",
+            "bio",
+            "createdAt",
+            "updatedAt",
         ]
-        read_only_fields = ['id', 'user', 'createdAt', 'updatedAt']
+        read_only_fields = ["id", "user", "createdAt", "updatedAt"]
