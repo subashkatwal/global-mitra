@@ -1,429 +1,550 @@
-"""
-DRF Views for Global Mitra Incident Report & Alert System.
-All processing is synchronous - no background workers.
-"""
-
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
-from django.db import transaction
-from django.db.models import Q, Count
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.views import APIView
+from django.db.models import Count
 from django.utils import timezone
-from django.shortcuts import get_object_or_404
+from datetime import timedelta
+from globalmitra.permissions import IsAdminUser
 
-from .models import IncidentReport, IncidentCluster, AlertBroadcast, Notification
-from .serializers import (
-    IncidentReportSerializer, 
-    IncidentReportListSerializer,
+from reports.models import (
+    IncidentReport,
+    IncidentCluster,
+    AlertBroadcast,
+    Notification,
+)
+from reports.serializers import (
+    IncidentReportCreateSerializer,
+    IncidentReportReadSerializer,
     IncidentClusterSerializer,
+    IncidentClusterDetailSerializer,
     AlertBroadcastSerializer,
     NotificationSerializer,
-    NotificationMarkReadSerializer
 )
-from .tfidf_dbscan import process_new_incident
-from globalmitra.permissions import IsAdminOrReadOnly, IsOwnerOrReadOnly
 
 
-class IncidentReportViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for incident reports.
-    POST creates incident and triggers synchronous TF-IDF + DBSCAN processing.
-    """
-    
-    queryset = IncidentReport.objects.all()
-    serializer_class = IncidentReportSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """Filter based on user role."""
-        user = self.request.user
-        if user.is_staff:
-            return IncidentReport.objects.all().order_by('-created_at')
-        return IncidentReport.objects.filter(
-            Q(status='VERIFIED') | Q(status='AUTO_ALERTED')
-        ).order_by('-created_at')
-    
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return IncidentReportListSerializer
-        return IncidentReportSerializer
-    
-    @transaction.atomic
-    def perform_create(self, serializer):
-        """
-        Create incident and immediately run ML clustering pipeline.
-        This is synchronous - request waits for clustering to complete.
-        """
-        # Save the incident first
-        incident = serializer.save(
-            status='PENDING',
-            confidenceScore=serializer.validated_data.get('confidenceScore', 0.5)
+# ─────────────────────────────────────────────────────────────────────────────
+# REPORTS  →  GET /reports  |  POST /reports
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ReportListCreateView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [permissions.IsAuthenticated()]
+        return [IsAdminUser()]
+
+    # GET /reports  — admin list with filters + status_counts
+    def get(self, request):
+        qs = IncidentReport.objects.select_related("user").order_by("-createdAt")
+
+        s = request.query_params.get("status")
+        if s:
+            qs = qs.filter(status__iexact=s)
+
+        cat = request.query_params.get("category")
+        if cat:
+            qs = qs.filter(category__iexact=cat)
+
+        search = request.query_params.get("search")
+        if search:
+            qs = qs.filter(description__icontains=search)
+
+        status_counts = dict(
+            IncidentReport.objects.values_list("status").annotate(n=Count("id"))
         )
-        
-        # Create notification for admins about new incident
-        self._notify_admins_new_incident(incident)
-        
-        # Run TF-IDF + DBSCAN clustering synchronously
-        self._process_clustering(incident)
-        
-        return incident
-    
-    def _notify_admins_new_incident(self, incident: IncidentReport):
-        """Create notifications for all admin users."""
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        
-        admins = User.objects.filter(is_staff=True)
-        notifications = [
-            Notification(
-                recipient=admin,
-                notificationType='NEW_INCIDENT',
-                title='New Incident Reported',
-                message=f'New {incident.category} incident requires review.',
-                incidentReport=incident
-            )
-            for admin in admins
-        ]
-        Notification.objects.bulk_create(notifications)
-    
-    def _process_clustering(self, new_incident: IncidentReport):
-        """
-        Synchronous ML processing.
-        Fetches all relevant reports, runs clustering, updates database.
-        """
-        # Get all reports eligible for clustering (exclude REJECTED)
-        eligible_reports = IncidentReport.objects.filter(
-            ~Q(status='REJECTED')
-        ).select_related()
-        
-        try:
-            # Run ML pipeline
-            result = process_new_incident(eligible_reports, new_incident.id)
-            
-            # Update database with clustering results
-            self._update_clusters(result, eligible_reports)
-            
-        except Exception as e:
-            # Log error but don't fail the request
-            # In production, use proper logging
-            print(f"Clustering error: {str(e)}")
-            # Could also create an admin notification about clustering failure
-    
-    def _update_clusters(self, result: dict, reports_queryset):
-        """
-        Update database based on clustering results.
-        Creates/updates IncidentCluster records.
-        """
-        clustering = result['clustering_result']
-        actions = result['actions']
-        report_map = result['report_index_map']
-        
-        # Build ID to object map for efficient lookup
-        reports_by_id = {r.id: r for r in reports_queryset}
-        
-        # Clear existing cluster assignments for affected reports
-        # (Simplification: we rebuild clusters on each new incident)
-        affected_report_ids = set()
-        for cluster_data in clustering['clusters'].values():
-            affected_report_ids.update(cluster_data['report_ids'])
-        
-        # Remove reports from existing clusters
-        for report_id in affected_report_ids:
-            report = reports_by_id.get(report_id)
-            if report:
-                # Remove from all current clusters
-                report.incidentcluster_set.clear()
-        
-        # Delete empty clusters (optional cleanup)
-        IncidentCluster.objects.filter(reports__isnull=True).delete()
-        
-        # Create/update clusters
-        newly_formed_clusters = []
-        
-        for cluster_label, cluster_data in clustering['clusters'].items():
-            # Check if cluster exists
-            cluster, created = IncidentCluster.objects.get_or_create(
-                id=cluster_label,  # Using label as ID for simplicity
-                defaults={
-                    'centerLatitude': cluster_data['centerLatitude'],
-                    'centerLongitude': cluster_data['centerLongitude'],
-                    'topKeywords': cluster_data['topKeywords'],
-                    'confidenceScore': cluster_data['confidenceScore'],
-                    'dominantCategory': cluster_data['dominantCategory'],
-                    'isAlertTriggered': False
-                }
-            )
-            
-            if not created:
-                # Update existing cluster
-                cluster.centerLatitude = cluster_data['centerLatitude']
-                cluster.centerLongitude = cluster_data['centerLongitude']
-                cluster.topKeywords = cluster_data['topKeywords']
-                cluster.confidenceScore = cluster_data['confidenceScore']
-                cluster.dominantCategory = cluster_data['dominantCategory']
-                cluster.save()
-            
-            # Add reports to cluster
-            report_objs = [
-                reports_by_id[rid] for rid in cluster_data['report_ids']
-                if rid in reports_by_id
-            ]
-            cluster.reports.add(*report_objs)
-            
-            # Track newly formed clusters (size exactly 3)
-            if created and cluster_data['size'] == 3:
-                newly_formed_clusters.append(cluster)
-            
-            # Check auto-alert threshold
-            if cluster_data['confidenceScore'] > 0.75 and not cluster.isAlertTriggered:
-                self._trigger_auto_alert(cluster, cluster_data)
-        
-        # Notify admins about newly formed clusters
-        for cluster in newly_formed_clusters:
-            self._notify_cluster_formed(cluster)
-    
-    def _notify_cluster_formed(self, cluster: IncidentCluster):
-        """Notify admins when a new cluster is formed."""
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        
-        admins = User.objects.filter(is_staff=True)
-        keywords = ', '.join(cluster.topKeywords[:3]) if cluster.topKeywords else 'N/A'
-        
-        notifications = [
-            Notification(
-                recipient=admin,
-                notificationType='CLUSTER_FORMED',
-                title='New Incident Cluster Detected',
-                message=f'Cluster of {cluster.reports.count()} reports detected. '
-                        f'Category: {cluster.dominantCategory}, '
-                        f'Keywords: {keywords}, '
-                        f'Confidence: {cluster.confidenceScore:.0%}',
-            )
-            for admin in admins
-        ]
-        Notification.objects.bulk_create(notifications)
-    
-    def _trigger_auto_alert(self, cluster: IncidentCluster, cluster_data: dict):
-        """Create automatic alert broadcast for high-confidence cluster."""
-        # Create alert broadcast
-        alert = AlertBroadcast.objects.create(
-            cluster=cluster,
-            message=f"AUTO-ALERT: High-confidence incident cluster detected. "
-                    f"Category: {cluster.dominantCategory}. "
-                    f"Location: ({cluster.centerLatitude:.4f}, {cluster.centerLongitude:.4f}). "
-                    f"Keywords: {', '.join(cluster.topKeywords[:3])}. "
-                    f"Confidence: {cluster.confidenceScore:.0%}",
-            severity='HIGH' if cluster.confidenceScore > 0.85 else 'MEDIUM',
-            triggerType='AUTO'
+        counts = {
+            "PENDING": status_counts.get("PENDING", 0),
+            "VERIFIED": status_counts.get("VERIFIED", 0),
+            "REJECTED": status_counts.get("REJECTED", 0),
+            "AUTO_VERIFIED": status_counts.get("AUTO_VERIFIED", 0),
+        }
+
+        serializer = IncidentReportReadSerializer(
+            qs, many=True, context={"request": request}
         )
-        
-        # Mark cluster as alerted
-        cluster.isAlertTriggered = True
-        cluster.save()
-        
-        # Update all reports in cluster to AUTO_ALERTED status
-        cluster.reports.update(status='AUTO_ALERTED')
-        
-        # Create notifications
-        self._notify_auto_alert(cluster, alert)
-    
-    def _notify_auto_alert(self, cluster: IncidentCluster, alert: AlertBroadcast):
-        """Notify relevant users about auto-alert."""
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        
-        # Notify admins
-        admins = User.objects.filter(is_staff=True)
-        admin_notifications = [
-            Notification(
-                recipient=admin,
-                notificationType='AUTO_ALERT',
-                title=f'Auto-Alert Triggered: {alert.severity}',
-                message=f'Cluster {cluster.id} auto-alert: {alert.message[:200]}...',
-            )
-            for admin in admins
-        ]
-        
-        # Notify users who submitted reports in this cluster
-        submitters = User.objects.filter(
-            incidentreport__in=cluster.reports.all()
-        ).distinct()
-        
-        user_notifications = [
-            Notification(
-                recipient=submitter,
-                notificationType='ALERT_BROADCAST',
-                title='Incident Alert in Your Area',
-                message=f'Your reported incident is part of a verified cluster. '
-                        f'Authorities have been notified. Severity: {alert.severity}',
-            )
-            for submitter in submitters
-        ]
-        
-        Notification.objects.bulk_create(admin_notifications + user_notifications)
-    
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminOrReadOnly])
-    def verify(self, request, pk=None):
-        """Admin action to verify an incident report."""
-        incident = self.get_object()
-        
-        if incident.status == 'REJECTED':
-            return Response(
-                {'error': 'Cannot verify a rejected report'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        incident.status = 'VERIFIED'
-        incident.save()
-        
-        # Notify submitter
-        if hasattr(incident, 'submitter') and incident.submitter:
-            Notification.objects.create(
-                recipient=incident.submitter,
-                notificationType='REPORT_VERIFIED',
-                title='Report Verified',
-                message='Your incident report has been verified by administrators.',
-                incidentReport=incident
-            )
-        
-        return Response({'status': 'Report verified'})
-    
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminOrReadOnly])
-    def reject(self, request, pk=None):
-        """Admin action to reject an incident report."""
-        incident = self.get_object()
-        
-        # Remove from any clusters
-        incident.incidentcluster_set.clear()
-        
-        incident.status = 'REJECTED'
-        incident.save()
-        
-        # Notify submitter
-        if hasattr(incident, 'submitter') and incident.submitter:
-            Notification.objects.create(
-                recipient=incident.submitter,
-                notificationType='REPORT_REJECTED',
-                title='Report Rejected',
-                message='Your incident report has been rejected by administrators.',
-                incidentReport=incident
-            )
-        
-        return Response({'status': 'Report rejected'})
+        return Response({"results": serializer.data, "status_counts": counts})
 
-
-class IncidentClusterViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet for viewing incident clusters.
-    Read-only for all users, admin can see all details.
-    """
-    
-    queryset = IncidentCluster.objects.annotate(
-        report_count=Count('reports')
-    ).filter(report_count__gte=3)  # Only show valid clusters (3+ reports)
-    
-    serializer_class = IncidentClusterSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """Filter clusters based on user role."""
-        base_query = IncidentCluster.objects.annotate(
-            report_count=Count('reports')
-        ).filter(report_count__gte=3).prefetch_related('reports')
-        
-        if self.request.user.is_staff:
-            return base_query.order_by('-confidenceScore')
-        
-        # Regular users only see clusters with verified/auto-alerted incidents
-        return base_query.filter(
-            reports__status__in=['VERIFIED', 'AUTO_ALERTED']
-        ).distinct().order_by('-created_at')
-
-
-class AlertBroadcastViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for alert broadcasts.
-    Admins can create manual alerts, everyone can read.
-    """
-    
-    queryset = AlertBroadcast.objects.all().select_related('cluster')
-    serializer_class = AlertBroadcastSerializer
-    permission_classes = [IsAdminOrReadOnly]
-    
-    @transaction.atomic
-    def perform_create(self, serializer):
-        """Create manual alert broadcast."""
-        # Ensure triggerType is MANUAL for admin-created alerts
-        alert = serializer.save(triggerType='MANUAL')
-        
-        # Mark cluster as alerted if linked
-        if alert.cluster:
-            alert.cluster.isAlertTriggered = True
-            alert.cluster.save()
-        
-        # Create notifications for affected users
-        self._notify_manual_alert(alert)
-        
-        return alert
-    
-    def _notify_manual_alert(self, alert: AlertBroadcast):
-        """Notify users about manual alert."""
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        
-        recipients = User.objects.all()  # Or filter by geography/role
-        
-        notifications = [
-            Notification(
-                recipient=user,
-                notificationType='ALERT_BROADCAST',
-                title=f'Alert: {alert.severity}',
-                message=alert.message,
-            )
-            for user in recipients
-        ]
-        Notification.objects.bulk_create(notifications)
-
-
-class NotificationViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for notifications.
-    Users can only see their own notifications.
-    Frontend polls this endpoint every 15-30 seconds.
-    """
-    
-    serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """Return only current user's notifications."""
-        return Notification.objects.filter(
-            recipient=self.request.user
-        ).order_by('-created_at')
-    
-    @action(detail=False, methods=['get'])
-    def unread_count(self, request):
-        """Get count of unread notifications (for badge)."""
-        count = self.get_queryset().filter(isRead=False).count()
-        return Response({'unread_count': count})
-    
-    @action(detail=False, methods=['post'])
-    def mark_all_read(self, request):
-        """Mark all notifications as read."""
-        self.get_queryset().update(isRead=True)
-        return Response({'status': 'All notifications marked as read'})
-    
-    @action(detail=True, methods=['patch'])
-    def mark_read(self, request, pk=None):
-        """Mark single notification as read."""
-        notification = self.get_object()
-        serializer = NotificationMarkReadSerializer(
-            notification, 
-            data={'isRead': True}, 
-            partial=True
+    # POST /reports  — any authenticated user submits a report
+    def post(self, request):
+        serializer = IncidentReportCreateSerializer(
+            data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(user=request.user)
+        read = IncidentReportReadSerializer(
+            serializer.instance, context={"request": request}
+        )
+        return Response(read.data, status=status.HTTP_201_CREATED)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REPORTS  →  GET /reports/<pk>  |  PATCH /reports/<pk>  |  DELETE /reports/<pk>
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ReportDetailView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [permissions.IsAuthenticated()]
+        return [IsAdminUser()]
+
+    def get_object(self, pk):
+        try:
+            return IncidentReport.objects.select_related("user").get(pk=pk)
+        except IncidentReport.DoesNotExist:
+            return None
+
+    # GET /reports/<pk>
+    def get(self, request, pk):
+        report = self.get_object(pk)
+        if not report:
+            return Response(
+                {"detail": "Report not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(
+            IncidentReportReadSerializer(report, context={"request": request}).data
+        )
+
+    # PATCH /reports/<pk>  — admin sets status / rejectionReason
+    def patch(self, request, pk):
+        report = self.get_object(pk)
+        if not report:
+            return Response(
+                {"detail": "Report not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        new_status = request.data.get("status")
+        allowed = {"VERIFIED", "REJECTED", "PENDING"}
+
+        if new_status not in allowed:
+            return Response(
+                {"status": f"Must be one of: {', '.join(allowed)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        report.status = new_status
+        update_fields = ["status"]
+
+        if new_status == "REJECTED":
+            reason = request.data.get("rejectionReason", "")
+            report.rejectionReason = reason
+            update_fields.append("rejectionReason")
+
+        report.verifiedBy = request.user
+        update_fields.append("verifiedBy")
+        report.save(update_fields=update_fields)
+
+        notif_type = (
+            "REPORT_VERIFIED" if new_status == "VERIFIED" else "REPORT_REJECTED"
+        )
+        notif_msg = (
+            "Your incident report has been verified by an admin."
+            if new_status == "VERIFIED"
+            else f"Your incident report was rejected. Reason: {report.rejectionReason or 'N/A'}"
+        )
+        Notification.objects.create(
+            recipient=report.user,
+            notificationType=notif_type,
+            title=f"Report {new_status.title()}",
+            message=notif_msg,
+            incidentReport=report,
+        )
+
+        return Response(
+            IncidentReportReadSerializer(report, context={"request": request}).data
+        )
+
+    # DELETE /reports/<pk>
+    def delete(self, request, pk):
+        report = self.get_object(pk)
+        if not report:
+            return Response(
+                {"detail": "Report not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        report.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REPORTS  →  POST /reports/<pk>/verify  |  POST /reports/<pk>/reject
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ReportVerifyView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            report = IncidentReport.objects.select_related("user").get(pk=pk)
+        except IncidentReport.DoesNotExist:
+            return Response(
+                {"detail": "Report not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        report.status = "VERIFIED"
+        report.verifiedBy = request.user
+        report.save(update_fields=["status", "verifiedBy"])
+
+        Notification.objects.create(
+            recipient=report.user,
+            notificationType="REPORT_VERIFIED",
+            title="Report Verified",
+            message="Your incident report has been verified by an admin.",
+            incidentReport=report,
+        )
+
+        return Response(
+            IncidentReportReadSerializer(report, context={"request": request}).data
+        )
+
+
+class ReportRejectView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            report = IncidentReport.objects.select_related("user").get(pk=pk)
+        except IncidentReport.DoesNotExist:
+            return Response(
+                {"detail": "Report not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        reason = request.data.get("rejectionReason", "")
+        report.status = "REJECTED"
+        report.rejectionReason = reason
+        report.verifiedBy = request.user
+        report.save(update_fields=["status", "rejectionReason", "verifiedBy"])
+
+        Notification.objects.create(
+            recipient=report.user,
+            notificationType="REPORT_REJECTED",
+            title="Report Rejected",
+            message=f"Your incident report was rejected. Reason: {reason or 'N/A'}",
+            incidentReport=report,
+        )
+
+        return Response(
+            IncidentReportReadSerializer(report, context={"request": request}).data
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OVERVIEW  →  GET /reports/overview
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ReportsOverviewView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        now = timezone.now()
+        this_week = now - timedelta(days=7)
+        last_week = now - timedelta(days=14)
+
+        total = IncidentReport.objects.count()
+        this_w = IncidentReport.objects.filter(createdAt__gte=this_week).count()
+        last_w = IncidentReport.objects.filter(
+            createdAt__gte=last_week,
+            createdAt__lt=this_week,
+        ).count()
+
+        weekly_change = (
+            round(((this_w - last_w) / last_w) * 100, 1) if last_w > 0 else 0
+        )
+
+        weekly_data = []
+        for i in range(6, -1, -1):
+            day = now - timedelta(days=i)
+            weekly_data.append(
+                {
+                    "day": day.strftime("%a"),
+                    "count": IncidentReport.objects.filter(
+                        createdAt__date=day.date()
+                    ).count(),
+                }
+            )
+
+        by_category = list(
+            IncidentReport.objects.values("category")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+
+        status_map = dict(
+            IncidentReport.objects.values_list("status").annotate(n=Count("id"))
+        )
+
+        return Response(
+            {
+                "total_reports": total,
+                "pending_count": status_map.get("PENDING", 0),
+                "verified_count": status_map.get("VERIFIED", 0),
+                "rejected_count": status_map.get("REJECTED", 0),
+                "auto_alerted_count": status_map.get("AUTO_VERIFIED", 0),
+                "active_clusters": IncidentCluster.objects.count(),
+                "alerts_sent": AlertBroadcast.objects.count(),
+                "weekly_change": weekly_change,
+                "weekly_data": weekly_data,
+                "by_category": by_category,
+            }
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLUSTERS  →  GET /clusters  |  GET /clusters/<pk>  |  DELETE /clusters/<pk>
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ClusterListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        qs = IncidentCluster.objects.annotate(_report_count=Count("reports")).order_by(
+            "-createdAt"
+        )
+
+        status_param = request.query_params.get("status")
+        if status_param == "Verified":
+            qs = qs.filter(isAlertTriggered=True)
+        elif status_param == "Possible":
+            qs = qs.filter(isAlertTriggered=False)
+
+        category_param = request.query_params.get("category")
+        if category_param:
+            qs = qs.filter(dominantCategory__iexact=category_param)
+
+        serializer = IncidentClusterSerializer(
+            qs, many=True, context={"request": request}
+        )
         return Response(serializer.data)
+
+
+class ClusterDetailView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [permissions.IsAuthenticated()]
+        return [IsAdminUser()]
+
+    def get_object(self, pk):
+        try:
+            return IncidentCluster.objects.prefetch_related("reports__user").get(pk=pk)
+        except IncidentCluster.DoesNotExist:
+            return None
+
+    # GET /clusters/<pk>
+    def get(self, request, pk):
+        cluster = self.get_object(pk)
+        if not cluster:
+            return Response(
+                {"detail": "Cluster not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(
+            IncidentClusterDetailSerializer(cluster, context={"request": request}).data
+        )
+
+    # DELETE /clusters/<pk>
+    def delete(self, request, pk):
+        cluster = self.get_object(pk)
+        if not cluster:
+            return Response(
+                {"detail": "Cluster not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        cluster.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLUSTERS  →  POST /clusters/<pk>/broadcast
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ClusterBroadcastView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            cluster = IncidentCluster.objects.prefetch_related("reports__user").get(
+                pk=pk
+            )
+        except IncidentCluster.DoesNotExist:
+            return Response(
+                {"detail": "Cluster not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        severity = request.data.get("severity", "MEDIUM").upper()
+        message = request.data.get("message", "").strip()
+
+        if not message:
+            return Response(
+                {"detail": "message is required."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if severity not in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+            return Response(
+                {"detail": "severity must be LOW, MEDIUM, HIGH, or CRITICAL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        alert = AlertBroadcast.objects.create(
+            cluster=cluster,
+            message=message,
+            severity=severity,
+            triggerType="MANUAL",
+            broadcastedBy=request.user,
+        )
+
+        cluster.isAlertTriggered = True
+        cluster.save(update_fields=["isAlertTriggered"])
+
+        for report in cluster.reports.select_related("user").all():
+            Notification.objects.create(
+                recipient=report.user,
+                notificationType="ALERT_BROADCAST",
+                title=f"Alert: {cluster.dominantCategory.replace('_', ' ').title()}",
+                message=message,
+                incidentReport=report,
+            )
+
+        return Response(
+            AlertBroadcastSerializer(alert, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ALERTS  →  GET /alerts  |  GET /alerts/<pk>  |  DELETE /alerts/<pk>
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class AlertListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        qs = AlertBroadcast.objects.select_related("cluster", "broadcastedBy").order_by(
+            "-broadcastTime"
+        )
+
+        severity = request.query_params.get("severity")
+        if severity:
+            qs = qs.filter(severity__iexact=severity)
+
+        trigger = request.query_params.get("trigger")
+        if trigger:
+            qs = qs.filter(triggerType__iexact=trigger)
+
+        serializer = AlertBroadcastSerializer(
+            qs, many=True, context={"request": request}
+        )
+        return Response(serializer.data)
+
+
+class AlertDetailView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [permissions.IsAuthenticated()]
+        return [IsAdminUser()]
+
+    def get_object(self, pk):
+        try:
+            return AlertBroadcast.objects.select_related(
+                "cluster", "broadcastedBy"
+            ).get(pk=pk)
+        except AlertBroadcast.DoesNotExist:
+            return None
+
+    # GET /alerts/<pk>
+    def get(self, request, pk):
+        alert = self.get_object(pk)
+        if not alert:
+            return Response(
+                {"detail": "Alert not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(
+            AlertBroadcastSerializer(alert, context={"request": request}).data
+        )
+
+    # DELETE /alerts/<pk>
+    def delete(self, request, pk):
+        alert = self.get_object(pk)
+        if not alert:
+            return Response(
+                {"detail": "Alert not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        alert.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTIFICATIONS  →  GET /notifications  |  PATCH /notifications/<pk>  |  POST /notifications/read-all
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class NotificationListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        qs = Notification.objects.filter(recipient=request.user).order_by("-createdAt")
+        unread = qs.filter(isRead=False).count()
+        serializer = NotificationSerializer(qs, many=True, context={"request": request})
+        response = Response(serializer.data)
+        response["X-Unread-Count"] = unread
+        return response
+
+
+class NotificationDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self, pk, user):
+        try:
+            return Notification.objects.get(pk=pk, recipient=user)
+        except Notification.DoesNotExist:
+            return None
+
+    # GET /notifications/<pk>
+    def get(self, request, pk):
+        notif = self.get_object(pk, request.user)
+        if not notif:
+            return Response(
+                {"detail": "Notification not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(
+            NotificationSerializer(notif, context={"request": request}).data
+        )
+
+    # PATCH /notifications/<pk>  — mark single notification as read
+    def patch(self, request, pk):
+        notif = self.get_object(pk, request.user)
+        if not notif:
+            return Response(
+                {"detail": "Notification not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        notif.isRead = True
+        notif.save(update_fields=["isRead"])
+        return Response(
+            NotificationSerializer(notif, context={"request": request}).data
+        )
+
+    # DELETE /notifications/<pk>
+    def delete(self, request, pk):
+        notif = self.get_object(pk, request.user)
+        if not notif:
+            return Response(
+                {"detail": "Notification not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        notif.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MarkAllNotificationsReadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        updated = Notification.objects.filter(
+            recipient=request.user, isRead=False
+        ).update(isRead=True)
+        return Response({"marked_read": updated})

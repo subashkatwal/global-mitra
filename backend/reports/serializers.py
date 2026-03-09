@@ -1,148 +1,172 @@
-"""
-DRF Serializers for Global Mitra Incident Report & Alert System.
-"""
-
 from rest_framework import serializers
-from .models import IncidentReport, IncidentCluster, AlertBroadcast, Notification
+from reports.models import IncidentReport, IncidentCluster, AlertBroadcast, Notification
 
 
-class IncidentReportSerializer(serializers.ModelSerializer):
-    """Serializer for incident reports with read-only status tracking."""
-    
-    cluster_id = serializers.SerializerMethodField()
-    createdAt = serializers.DateTimeField(read_only=True)
-    
-    
+class IncidentReportCreateSerializer(serializers.ModelSerializer):
+    """
+    POST /api/v1/incidents/reports
+    Accepts multipart/form-data.
+    `user` is injected by the view — never sent by the client.
+    `image` is optional (blank=True, null=True in model).
+    """
+
     class Meta:
         model = IncidentReport
         fields = [
-            'id', 'description', 'category', 'latitude', 'longitude',
-            'confidenceScore', 'status', 'cluster_id',
-            'createdAt'
+            "id",
+            "description",
+            "category",
+            "latitude",
+            "longitude",
+            "image",
         ]
-        read_only_fields = ['status', 'cluster_id', 'createdAt' ]
-    
-    def get_cluster_id(self, obj: IncidentReport) -> int:
-        """Return the ID of the cluster this report belongs to, if any."""
-        cluster = obj.incidentcluster_set.first()  # ManyToMany reverse lookup
-        return cluster.id if cluster else None
-    
-    def validate_latitude(self, value: float) -> float:
-        if not -90 <= value <= 90:
+        read_only_fields = ["id"]
+
+    def validate_description(self, value):
+        if len(value.strip()) < 10:
+            raise serializers.ValidationError(
+                "Description must be at least 10 characters."
+            )
+        return value.strip()
+
+    def validate_latitude(self, value):
+        if not (-90 <= value <= 90):
             raise serializers.ValidationError("Latitude must be between -90 and 90.")
         return value
-    
-    def validate_longitude(self, value: float) -> float:
-        if not -180 <= value <= 180:
+
+    def validate_longitude(self, value):
+        if not (-180 <= value <= 180):
             raise serializers.ValidationError("Longitude must be between -180 and 180.")
         return value
-    
-    def validate_confidenceScore(self, value: float) -> float:
-        if not 0 <= value <= 1:
-            raise serializers.ValidationError("Confidence score must be between 0 and 1.")
-        return value
+
+    def create(self, validated_data):
+        # view calls serializer.save(user=request.user)
+        return IncidentReport.objects.create(**validated_data)
 
 
-class IncidentReportListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for list views."""
-    
+class IncidentReportReadSerializer(serializers.ModelSerializer):
+    """
+    Used in cluster detail, admin list, and POST response.
+    Exposes author info alongside report fields.
+    """
+
+    authorName = serializers.SerializerMethodField()
+    authorEmail = serializers.SerializerMethodField()
+    authorRole = serializers.SerializerMethodField()
+
     class Meta:
         model = IncidentReport
-        fields = ['id', 'description', 'category', 'status', 'latitude', 'longitude', 'createdAt']
+        fields = [
+            "id",
+            "description",
+            "category",
+            "image",
+            "latitude",
+            "longitude",
+            "confidenceScore",
+            "status",
+            "createdAt",
+            "authorName",
+            "authorEmail",
+            "authorRole",
+        ]
+
+    def get_authorName(self, obj):
+        u = obj.user
+        return getattr(u, "fullName", None) or getattr(u, "full_name", None) or u.email
+
+    def get_authorEmail(self, obj):
+        return obj.user.email
+
+    def get_authorRole(self, obj):
+        return obj.user.role
 
 
 class IncidentClusterSerializer(serializers.ModelSerializer):
-    """Serializer for incident clusters with nested reports."""
-    
-    reports = IncidentReportListSerializer(many=True, read_only=True)
-    report_count = serializers.SerializerMethodField()
-    alert_broadcast = serializers.SerializerMethodField()
-    
+    """
+    GET /api/v1/incidents/clusters
+    Returns all fields the frontend ReportPage needs:
+    status label, report count, centroid, keywords, alert flag.
+    """
+
+    status = serializers.SerializerMethodField()
+    reportCount = serializers.SerializerMethodField()
+
     class Meta:
         model = IncidentCluster
         fields = [
-            'id', 'reports', 'report_count', 'centerLatitude', 'centerLongitude',
-            'topKeywords', 'confidenceScore', 'dominantCategory', 'isAlertTriggered',
-            'alert_broadcast', 'createdAt'
+            "id",
+            "reportCount",
+            "centerLatitude",
+            "centerLongitude",
+            "topKeywords",
+            "dominantCategory",
+            "confidenceScore",
+            "isAlertTriggered",
+            "status",
+            "createdAt",
         ]
-    
-    def get_report_count(self, obj: IncidentCluster) -> int:
-        return obj.reports.count()
-    
-    def get_alert_broadcast(self, obj: IncidentCluster) -> dict:
-        """Return associated alert broadcast if exists."""
-        try:
-            alert = obj.alertbroadcast
-            return {
-                'id': alert.id,
-                'message': alert.message,
-                'severity': alert.severity,
-                'triggerType': alert.triggerType,
-                'createdAt': alert.createdAt
-            }
-        except AlertBroadcast.DoesNotExist:
-            return None
+
+    def get_status(self, obj):
+        return "Verified" if obj.isAlertTriggered else "Possible"
+
+    def get_reportCount(self, obj):
+        # Use annotated value if present (from queryset), else hit M2M
+        return getattr(obj, "_report_count", None) or obj.reports.count()
+
+
+class IncidentClusterDetailSerializer(IncidentClusterSerializer):
+    """
+    Cluster detail — includes the individual reports inside.
+    Used by admin when reviewing a cluster.
+    """
+
+    reports = IncidentReportReadSerializer(many=True, read_only=True)
+
+    class Meta(IncidentClusterSerializer.Meta):
+        fields = IncidentClusterSerializer.Meta.fields + ["reports"]
 
 
 class AlertBroadcastSerializer(serializers.ModelSerializer):
-    """Serializer for alert broadcasts."""
-    
-    cluster_details = IncidentClusterSerializer(source='cluster', read_only=True)
-    triggered_by = serializers.SerializerMethodField()
-    
+    clusterId = serializers.UUIDField(source="cluster.id", read_only=True)
+    dominantCategory = serializers.CharField(
+        source="cluster.dominantCategory", read_only=True
+    )
+    centerLatitude = serializers.FloatField(
+        source="cluster.centerLatitude", read_only=True
+    )
+    centerLongitude = serializers.FloatField(
+        source="cluster.centerLongitude", read_only=True
+    )
+    broadcastedByEmail = serializers.SerializerMethodField()
+
     class Meta:
         model = AlertBroadcast
         fields = [
-            'id', 'cluster', 'cluster_details', 'message', 'severity',
-            'triggerType', 'triggered_by'
+            "id",
+            "clusterId",
+            "dominantCategory",
+            "centerLatitude",
+            "centerLongitude",
+            "message",
+            "severity",
+            "triggerType",
+            "broadcastedByEmail",
+            "broadcastTime",
         ]
-        read_only_fields = ['triggerType']
-    
-    def get_triggered_by(self, obj: AlertBroadcast) -> str:
-        """Show who triggered the alert (system or admin)."""
-        return "System (Auto)" if obj.triggerType == "AUTO" else "Admin (Manual)"
-    
-    def validate_severity(self, value: str) -> str:
-        valid_severities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
-        if value not in valid_severities:
-            raise serializers.ValidationError(f"Severity must be one of: {valid_severities}")
-        return value
+
+    def get_broadcastedByEmail(self, obj):
+        return obj.broadcastedBy.email if obj.broadcastedBy else "AUTO"
 
 
 class NotificationSerializer(serializers.ModelSerializer):
-    """Serializer for user notifications."""
-    
-    incident_details = serializers.SerializerMethodField()
-    time_ago = serializers.SerializerMethodField()
-    
     class Meta:
         model = Notification
         fields = [
-            'id', 'recipient', 'notificationType', 'title', 'message',
-            'incidentReport', 'incident_details', 'isRead', 'createdAt', 'time_ago'
+            "id",
+            "notificationType",
+            "title",
+            "message",
+            "isRead",
+            "createdAt",
         ]
-        read_only_fields = ['recipient', 'createdAt', 'isRead']
-    
-    def get_incident_details(self, obj: Notification) -> dict:
-        """Include minimal incident details if linked."""
-        if obj.incidentReport:
-            return {
-                'id': obj.incidentReport.id,
-                'description': obj.incidentReport.description[:100] + '...' if len(obj.incidentReport.description) > 100 else obj.incidentReport.description,
-                'category': obj.incidentReport.category,
-                'status': obj.incidentReport.status
-            }
-        return None
-    
-    def get_time_ago(self, obj: Notification) -> str:
-        """Human-readable time difference."""
-        from django.utils import timesince
-        return timesince.timesince(obj.createdAt) + " ago"
-
-
-class NotificationMarkReadSerializer(serializers.ModelSerializer):
-    """Simple serializer for marking notifications as read."""
-    
-    class Meta:
-        model = Notification
-        fields = ['isRead']

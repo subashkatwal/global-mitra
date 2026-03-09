@@ -26,9 +26,7 @@ class IncidentReport(models.Model):
     description = models.TextField()
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES, default='OTHER')
     image = models.ImageField(
-        upload_to='incident_images/',
-        blank=True,
-        null=True
+        upload_to='incident_images/'
     )
 
     latitude = models.FloatField()
