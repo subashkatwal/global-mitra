@@ -1,10 +1,128 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Plus, Search, Pencil, Trash2, Save, Loader2, RefreshCw, Eye, MessageCircle, Share2, Bookmark } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Save, Loader2, RefreshCw, Eye,
+         MessageCircle, Share2, Bookmark, Heart, Copy, Check, Globe, Users, Lock } from 'lucide-react';
 import { T, apiFetch, parseErr } from './utils';
-import { Spinner, ErrMsg, Empty, Modal, FormField, inputCls, inputStyle, Confirm, Pagination, Table, Tr, Td, ActionBtn } from './ui';
+import { Spinner, ErrMsg, Empty, Modal, FormField, inputCls, inputStyle,
+         Confirm, Pagination, Table, Tr, Td, ActionBtn } from './ui';
 import type { Post, ToastFn } from './types';
 
+// ─── Visibility config (mirrors SocialFeed) ───────────────────────────────────
+const VISIBILITY = {
+  public:      { label: 'Everyone',    icon: Globe,  color: '#10B981' },
+  guides_only: { label: 'Guides only', icon: Users,  color: '#6366F1' },
+  private:     { label: 'Only me',     icon: Lock,   color: '#94A3B8' },
+} as const;
+type VisibilityKey = keyof typeof VISIBILITY;
+
+function VisibilityPill({ v }: { v?: string }) {
+  const key = (v && (v in VISIBILITY)) ? v as VisibilityKey : 'public';
+  const { label, icon: Icon, color } = VISIBILITY[key];
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+      style={{ color, background: color + '18' }}>
+      <Icon className="w-2.5 h-2.5" />
+      {label}
+    </span>
+  );
+}
+
+// ─── Robust author helpers (same logic as SocialFeed) ─────────────────────────
+function resolveAuthorName(post: Post): string {
+  const a = post.author;
+  const candidates = [
+    a?.fullName,
+    a?.full_name,
+    (a as any)?.name,
+    (post as any).fullName,
+    (post as any).full_name,
+    (post as any).userName,
+  ];
+  for (const c of candidates) {
+    if (c && typeof c === 'string' && c.trim() && !c.includes('@')) return c.trim();
+  }
+  return '—';
+}
+
+function resolveAuthorEmail(post: Post): string {
+  return post.author?.email ?? (post as any).email ?? '';
+}
+
+function resolveAuthorPhoto(post: Post): string | null {
+  const a = post.author;
+  return (
+    a?.photo               ??
+    (a as any)?.avatar     ??
+    (a as any)?.profilePhoto ??
+    (post as any).userPhoto  ??
+    (post as any).profilePhoto ??
+    null
+  );
+}
+
+/** Human-readable relative time */
+function timeAgo(iso: string): string {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 10)    return 'just now';
+  if (s < 60)    return `${s} sec`;
+  if (s < 3600)  return `${Math.floor(s / 60)} min`;
+  if (s < 86400) return `${Math.floor(s / 3600)} hr${Math.floor(s / 3600) !== 1 ? 's' : ''}`;
+  const d = Math.floor(s / 86400);
+  if (d < 30)    return `${d} day${d !== 1 ? 's' : ''}`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12)   return `${mo} month${mo !== 1 ? 's' : ''}`;
+  return `${Math.floor(mo / 12)} yr`;
+}
+
+function shortId(id: string): string {
+  return id.length > 8 ? '…' + id.slice(-8) : id;
+}
+
+// ─── Author Avatar with image-error fallback ──────────────────────────────────
+function AuthorAvatar({ photo, name, size = 10 }: { photo?: string | null; name: string; size?: number }) {
+  const [imgErr, setImgErr] = useState(false);
+  const sz = `w-${size} h-${size}`;
+  const initial = (name && name !== '—') ? name.charAt(0).toUpperCase() : '?';
+  if (photo && !imgErr) {
+    return (
+      <img src={photo} alt={name}
+        className={`${sz} rounded-full object-cover flex-shrink-0`}
+        onError={() => setImgErr(true)} />
+    );
+  }
+  return (
+    <div className={`${sz} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-sm`}
+      style={{ background: T.primary }}>
+      {initial}
+    </div>
+  );
+}
+
+// ─── Copyable ID ──────────────────────────────────────────────────────────────
+function CopyableId({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border"
+      style={{ borderColor: T.borderSm, background: T.bgSoft }}>
+      <span className="text-xs font-semibold flex-shrink-0" style={{ color: T.textMuted }}>Post ID</span>
+      <span className="text-xs font-mono flex-1 truncate" style={{ color: T.textSub }}>{id}</span>
+      <button onClick={copy}
+        className="flex-shrink-0 p-1 rounded-lg hover:bg-white transition-colors"
+        title="Copy ID">
+        {copied
+          ? <Check className="w-3.5 h-3.5 text-emerald-500" />
+          : <Copy  className="w-3.5 h-3.5" style={{ color: T.textMuted }} />}
+      </button>
+    </div>
+  );
+}
+
+// ─── Post Form Modal ──────────────────────────────────────────────────────────
 function PostFormModal({ post, onClose, onSaved }: {
   post?: Post;
   onClose: () => void;
@@ -14,14 +132,22 @@ function PostFormModal({ post, onClose, onSaved }: {
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState('');
 
+  const name  = post ? resolveAuthorName(post)  : '';
+  const email = post ? resolveAuthorEmail(post) : '';
+  const photo = post ? resolveAuthorPhoto(post) : null;
+
   const handleSubmit = async () => {
     if (!content.trim()) { setErr('Content is required.'); return; }
     setSaving(true); setErr('');
     try {
       if (post) {
-        await apiFetch(`/socials/posts/${post.id}`, { method: 'PATCH', body: JSON.stringify({ textContent: content }) });
+        await apiFetch(`/socials/posts/${post.id}`, {
+          method: 'PATCH', body: JSON.stringify({ textContent: content }),
+        });
       } else {
-        await apiFetch('/socials/posts', { method: 'POST', body: JSON.stringify({ textContent: content }) });
+        await apiFetch('/socials/posts', {
+          method: 'POST', body: JSON.stringify({ textContent: content }),
+        });
       }
       onSaved();
     } catch (e: any) { setErr(parseErr(e)); }
@@ -30,7 +156,51 @@ function PostFormModal({ post, onClose, onSaved }: {
 
   return (
     <Modal title={post ? 'Edit Post' : 'Add Post'} onClose={onClose}>
-      {err && <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{err}</div>}
+      {err && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{err}</div>
+      )}
+
+      {post && (
+        <div className="mb-4 space-y-3">
+          <CopyableId id={post.id} />
+
+          {/* Author card */}
+          <div className="flex items-center gap-3 p-3 rounded-xl border"
+            style={{ borderColor: T.borderSm, background: T.bgSoft }}>
+            <AuthorAvatar photo={photo} name={name || '?'} size={9} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold truncate" style={{ color: T.textMain }}>
+                {name || 'Unknown'}
+              </p>
+              {email && (
+                <p className="text-xs truncate" style={{ color: T.textMuted }}>{email}</p>
+              )}
+            </div>
+            {/* Visibility */}
+            <VisibilityPill v={(post as any).visibility} />
+            {/* Stats */}
+            <div className="ml-2 flex items-center gap-3 flex-shrink-0 text-xs" style={{ color: T.textMuted }}>
+              <span className="flex items-center gap-1">
+                <Heart className="w-3.5 h-3.5" style={{ color: '#FF6B35' }} />
+                {(post as any).likeCount ?? 0}
+              </span>
+              <span className="flex items-center gap-1">
+                <MessageCircle className="w-3.5 h-3.5" style={{ color: T.primary }} />
+                {post.commentCount ?? 0}
+              </span>
+              <span className="flex items-center gap-1">
+                <Bookmark className="w-3.5 h-3.5" style={{ color: T.primary }} />
+                {post.bookmarkCount ?? 0}
+              </span>
+              <span className="flex items-center gap-1">
+                <Share2 className="w-3.5 h-3.5" style={{ color: T.textMid }} />
+                {post.shareCount ?? 0}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <FormField label="Content" req>
         <textarea
           value={content}
@@ -58,26 +228,30 @@ function PostFormModal({ post, onClose, onSaved }: {
   );
 }
 
+// ─── Post Detail Modal ────────────────────────────────────────────────────────
 function PostDetailModal({ post, onClose }: { post: Post; onClose: () => void }) {
+  const name  = resolveAuthorName(post);
+  const email = resolveAuthorEmail(post);
+  const photo = resolveAuthorPhoto(post);
+
   return (
     <Modal title="Post Detail" onClose={onClose}>
       <div className="space-y-4">
+        <CopyableId id={post.id} />
+
+        {/* Author row */}
         <div className="flex items-center gap-3">
-          {post.author?.photo ? (
-            <img src={post.author.photo} alt={post.author.fullName} className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
-              style={{ background: T.primary }}>
-              {post.author?.fullName?.charAt(0) ?? '?'}
-            </div>
-          )}
-          <div>
-            <p className="text-sm font-semibold" style={{ color: T.textMain }}>{post.author?.fullName}</p>
-            <p className="text-xs" style={{ color: T.textMuted }}>{post.author?.email}</p>
+          <AuthorAvatar photo={photo} name={name || '?'} size={10} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold" style={{ color: T.textMain }}>{name || 'Unknown'}</p>
+            {email && <p className="text-xs" style={{ color: T.textMuted }}>{email}</p>}
           </div>
+          <VisibilityPill v={(post as any).visibility} />
         </div>
 
-        <div className="p-3 rounded-xl text-sm leading-relaxed" style={{ background: T.bgSoft ?? '#F9F9F9', color: T.textSub }}>
+        {/* Content */}
+        <div className="p-3 rounded-xl text-sm leading-relaxed"
+          style={{ background: T.bgSoft, color: T.textSub }}>
           {post.textContent}
         </div>
 
@@ -85,14 +259,18 @@ function PostDetailModal({ post, onClose }: { post: Post; onClose: () => void })
           <img src={post.image} alt="" className="w-full rounded-xl object-cover max-h-64" />
         )}
 
-        <div className="grid grid-cols-3 gap-3">
+        {/* Stats grid */}
+        <div className="grid grid-cols-4 gap-3">
           {[
-            { icon: Bookmark,       label: 'Saves',    value: post.bookmarkCount },
-            { icon: MessageCircle,  label: 'Comments', value: post.commentCount },
-            { icon: Share2,         label: 'Shares',   value: post.shareCount },
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="flex flex-col items-center gap-1 p-3 rounded-xl border" style={{ borderColor: T.borderSm }}>
-              <Icon className="w-4 h-4" style={{ color: T.primary }} />
+            { icon: Heart,         label: 'Likes',    value: (post as any).likeCount, color: '#FF6B35' },
+            { icon: Bookmark,      label: 'Saves',    value: post.bookmarkCount,       color: T.primary },
+            { icon: MessageCircle, label: 'Comments', value: post.commentCount,        color: T.primary },
+            { icon: Share2,        label: 'Shares',   value: post.shareCount,          color: T.textMid },
+          ].map(({ icon: Icon, label, value, color }) => (
+            <div key={label}
+              className="flex flex-col items-center gap-1 p-3 rounded-xl border"
+              style={{ borderColor: T.borderSm }}>
+              <Icon className="w-4 h-4" style={{ color }} />
               <span className="text-lg font-bold" style={{ color: T.textMain }}>{value ?? 0}</span>
               <span className="text-[11px]" style={{ color: T.textMuted }}>{label}</span>
             </div>
@@ -100,13 +278,14 @@ function PostDetailModal({ post, onClose }: { post: Post; onClose: () => void })
         </div>
 
         <p className="text-xs" style={{ color: T.textMuted }}>
-          Posted {new Date(post.createdAt).toLocaleString()}
+          Posted {timeAgo(post.createdAt)} &nbsp;·&nbsp; {new Date(post.createdAt).toLocaleString()}
         </p>
       </div>
     </Modal>
   );
 }
 
+// ─── Posts Page ───────────────────────────────────────────────────────────────
 export function PostsPage({ toast }: { toast: ToastFn }) {
   const [posts,     setPosts]     = useState<Post[]>([]);
   const [total,     setTotal]     = useState(0);
@@ -142,11 +321,9 @@ export function PostsPage({ toast }: { toast: ToastFn }) {
     setConfirmId(null);
   };
 
-  const openEdit = (post: Post) => { setSelected(post); setModal('edit'); };
-  const openView = (post: Post) => { setSelected(post); setModal('view'); };
-
   return (
     <div>
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <h1 className="text-2xl font-bold" style={{ color: T.textMain }}>Posts</h1>
         <div className="flex items-center gap-2">
@@ -163,6 +340,7 @@ export function PostsPage({ toast }: { toast: ToastFn }) {
         </div>
       </div>
 
+      {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: T.textMuted }} />
         <input
@@ -174,44 +352,91 @@ export function PostsPage({ toast }: { toast: ToastFn }) {
         />
       </div>
 
+      {/* Table */}
       <div className="bg-white rounded-2xl border overflow-hidden shadow-sm" style={{ borderColor: T.border }}>
         {loading ? <Spinner /> : err ? <ErrMsg msg={err} onRetry={load} /> :
          posts.length === 0 ? <Empty msg="No posts found." /> : (
           <>
-            <Table headers={['Author', 'Content', 'Saves', 'Comments', 'Shares', 'Posted', 'Actions']}>
-              {posts.map(p => (
-                <Tr key={p.id}>
-                  <Td>
-                    <div className="flex items-center gap-2">
-                      {p.author?.photo ? (
-                        <img src={p.author.photo} className="w-7 h-7 rounded-full object-cover flex-shrink-0" alt="" />
-                      ) : (
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                          style={{ background: T.primary }}>
-                          {p.author?.fullName?.charAt(0) ?? '?'}
+            <Table headers={['Post ID', 'Author', 'Content', 'Visibility', 'Likes', 'Saves', 'Comments', 'Shares', 'Posted', 'Actions']}>
+              {posts.map(p => {
+                const name  = resolveAuthorName(p);
+                const email = resolveAuthorEmail(p);
+                const photo = resolveAuthorPhoto(p);
+                return (
+                  <Tr key={p.id}>
+                    {/* ID */}
+                    <Td>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-mono px-2 py-0.5 rounded-lg"
+                          style={{ background: T.bgSoft, color: T.textMuted }}>
+                          {shortId(p.id)}
+                        </span>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(p.id)}
+                          className="p-1 rounded hover:bg-gray-100 transition-colors"
+                          title="Copy full ID">
+                          <Copy className="w-3 h-3" style={{ color: T.textMuted }} />
+                        </button>
+                      </div>
+                    </Td>
+
+                    {/* Author */}
+                    <Td>
+                      <div className="flex items-center gap-2 min-w-[140px]">
+                        <AuthorAvatar photo={photo} name={name || '?'} size={7} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: T.textMain }}>
+                            {name || 'Unknown'}
+                          </p>
+                          {email && (
+                            <p className="text-[11px] truncate" style={{ color: T.textMuted }}>{email}</p>
+                          )}
                         </div>
-                      )}
-                      <span className="text-sm font-medium" style={{ color: T.textMain }}>{p.author?.fullName ?? '—'}</span>
-                    </div>
-                  </Td>
-                  <Td>
-                    <span className="line-clamp-2 max-w-xs block text-sm" style={{ color: T.textSub }}>
-                      {p.textContent}
-                    </span>
-                  </Td>
-                  <Td><span className="text-sm">{p.bookmarkCount ?? 0}</span></Td>
-                  <Td><span className="text-sm">{p.commentCount ?? 0}</span></Td>
-                  <Td><span className="text-sm">{p.shareCount ?? 0}</span></Td>
-                  <Td><span className="text-xs" style={{ color: T.textMuted }}>{new Date(p.createdAt).toLocaleDateString()}</span></Td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <ActionBtn icon={Eye}    color="#6366F1" title="View"   onClick={() => openView(p)} />
-                      <ActionBtn icon={Pencil} color="#F59E0B" title="Edit"   onClick={() => openEdit(p)} />
-                      <ActionBtn icon={Trash2} color="#EF4444" title="Delete" onClick={() => setConfirmId(p.id)} />
-                    </div>
-                  </td>
-                </Tr>
-              ))}
+                      </div>
+                    </Td>
+
+                    {/* Content */}
+                    <Td>
+                      <span className="line-clamp-2 max-w-xs block text-sm" style={{ color: T.textSub }}>
+                        {p.textContent}
+                      </span>
+                    </Td>
+
+                    {/* Visibility */}
+                    <Td><VisibilityPill v={(p as any).visibility} /></Td>
+
+                    {/* Stats */}
+                    <Td><span className="text-sm">{(p as any).likeCount ?? 0}</span></Td>
+                    <Td><span className="text-sm">{p.bookmarkCount ?? 0}</span></Td>
+                    <Td><span className="text-sm">{p.commentCount  ?? 0}</span></Td>
+                    <Td><span className="text-sm">{p.shareCount    ?? 0}</span></Td>
+
+                    {/* Posted */}
+                    <Td>
+                      <div>
+                        <p className="text-xs font-medium" style={{ color: T.textSub }}>
+                          {timeAgo(p.createdAt)}
+                        </p>
+                        <p className="text-[10px]" style={{ color: T.textMuted }}>
+                          {new Date(p.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </Td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <ActionBtn icon={Eye}    color="#6366F1" title="View"
+                          onClick={() => { setSelected(p); setModal('view'); }} />
+                        <ActionBtn icon={Pencil} color="#F59E0B" title="Edit"
+                          onClick={() => { setSelected(p); setModal('edit'); }} />
+                        <ActionBtn icon={Trash2} color="#EF4444" title="Delete"
+                          onClick={() => setConfirmId(p.id)} />
+                      </div>
+                    </td>
+                  </Tr>
+                );
+              })}
             </Table>
             <Pagination page={page} total={total} pageSize={PAGE_SIZE} onPage={setPage} />
           </>

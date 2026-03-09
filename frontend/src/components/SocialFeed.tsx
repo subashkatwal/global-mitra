@@ -4,99 +4,171 @@ import {
   Image, Send, Bookmark, BookmarkCheck, Share2, MessageCircle,
   X, Loader2, MoreHorizontal, Trash2, Pencil, Heart,
   Facebook, Twitter, Link, Mail, Bold, Italic, Underline,
-  AlignLeft, AlignCenter, AlignRight, List,
+  AlignLeft, AlignCenter, AlignRight, List, Globe, Users, Lock,
 } from 'lucide-react';
 import { T, apiFetch, apiFetchForm, parseErr } from './AdminDashboard/utils';
 import { Spinner, ErrMsg, Empty, Confirm } from './AdminDashboard/ui';
-import type { ToastFn } from '../types/index';
+import type { ToastFn } from './AdminDashboard/types';
 
-// ─── Theme overrides — use project palette instead of green ──────────────────
-// Primary action color: use T.primary (#3CA37A) sparingly, accent is warm coral
 const C = {
-  accent:    '#FF6B35',   // like / heart
+  accent:    '#FF6B35',
   accentBg:  '#FFF4F0',
-  save:      T.primary,   // bookmark uses theme primary
+  save:      T.primary,
   saveBg:    '#F0FBF5',
-  text:      T.textMain,
-  textSub:   T.textSub,
-  textMuted: T.textMuted,
+  text:      '#000000',
+  textSub:   '#111111',
+  textMuted: '#333333',
   border:    T.border,
   borderSm:  T.borderSm,
   cardBg:    '#FFFFFF',
-  pageBg:    '#F7F9FC',   // neutral page bg — NOT green
-  inputBg:   '#F7F9FC',
-  pill:      '#F1F5F9',   // tab/pill bg
-  pillText:  '#475569',
+  pageBg:    '#F7F9FC',
+  inputBg:   '#F9FAFB',
+  pill:      '#F1F5F9',
+  pillText:  '#000000',
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const VISIBILITY = {
+  public:      { label: 'Everyone',    icon: Globe,  color: '#000000' },
+  guides_only: { label: 'Guides only', icon: Users,  color: '#000000' },
+  private:     { label: 'Only me',     icon: Lock,   color: '#000000' },
+} as const;
+type VisibilityKey = keyof typeof VISIBILITY;
+
 interface Post {
   id:            string;
-  // author may come as nested object OR flat fields
-  author?:       { fullName?: string; full_name?: string; photo?: string | null; email?: string };
-  full_name?:    string;   // flat fallback
+  author?:       {
+    id?:           string;
+    fullName?:     string;
+    full_name?:    string;
+    name?:         string;
+    username?:     string;
+    photo?:        string | null;
+    avatar?:       string | null;
+    profilePhoto?: string | null;
+    picture?:      string | null;
+    image?:        string | null;
+    email?:        string;
+  };
+  fullName?:     string;
+  full_name?:    string;
+  name?:         string;
+  username?:     string;
+  userName?:     string;
+  photo?:        string | null;
+  avatar?:       string | null;
+  profilePhoto?: string | null;
   userPhoto?:    string | null;
+  picture?:      string | null;
   textContent:   string;
   image?:        string | null;
   commentCount?: number;
   likeCount?:    number;
   shareCount?:   number;
-  bookmarkCount?: number;
   isBookmarked?: boolean;
+  isLiked?:      boolean;
+  visibility?:   VisibilityKey;
   createdAt:     string;
 }
 
 interface Comment {
   id:          string;
-  author?:     { fullName?: string; full_name?: string; photo?: string | null };
+  author?:     Post['author'];
+  fullName?:   string;
   full_name?:  string;
+  name?:       string;
+  photo?:      string | null;
+  avatar?:     string | null;
+  profilePhoto?: string | null;
   userPhoto?:  string | null;
   textContent: string;
   image?:      string | null;
   createdAt:   string;
 }
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
-function timeAgo(iso: string) {
+function timeAgo(iso: string): string {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60)    return `${s}s`;
-  if (s < 3600)  return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  return `${Math.floor(s / 86400)}d`;
+  if (s < 10) return 'just now';
+  if (s < 60) return `${s} sec`;
+  if (s < 3600) return `${Math.floor(s / 60)} min`;
+  if (s < 86400) return `${Math.floor(s / 3600)} hr${Math.floor(s / 3600) !== 1 ? 's' : ''}`;
+  const d = Math.floor(s / 86400);
+  if (d < 30) return `${d} day${d !== 1 ? 's' : ''}`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12) return `${mo} month${mo !== 1 ? 's' : ''}`;
+  const yr = Math.floor(mo / 12);
+  return `${yr} year${yr !== 1 ? 's' : ''}`;
 }
 
-/** Resolve author name from post — handles both flat and nested shapes */
-function authorName(post: Post | Comment): string {
-  return (
-    (post as Post).author?.fullName   ||
-    (post as Post).author?.full_name  ||
-    (post as any).full_name           ||
-    (post as any).fullName            ||
-    'Unknown'
-  );
-}
-function authorPhoto(post: Post | Comment): string | null {
-  return (
-    (post as Post).author?.photo ??
-    (post as any).userPhoto      ??
-    null
-  );
+function authorName(item: Post | Comment): string {
+  const a = (item as Post).author;
+  const candidates = [
+    a?.fullName, a?.full_name, a?.name, a?.username,
+    item.fullName, item.full_name, item.name,
+    a?.email?.split('@')[0],
+  ];
+
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim() && !c.includes('@')) {
+      return c.trim();
+    }
+  }
+  return 'Unknown';
 }
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
+function authorPhoto(item: Post | Comment): string | null {
+  const a = (item as Post).author;
+  const candidates = [
+    a?.photo, a?.avatar, a?.profilePhoto, a?.picture, a?.image,
+    item.photo, item.avatar, item.profilePhoto, item.userPhoto,
+  ];
+
+  for (const p of candidates) {
+    if (typeof p === 'string' && p.trim() && p.startsWith('http')) {
+      return p;
+    }
+  }
+  return null;
+}
+
 function Avatar({ photo, name, size = 8 }: { photo?: string | null; name?: string; size?: number }) {
+  const [imgErr, setImgErr] = useState(false);
   const sz = `w-${size} h-${size}`;
-  if (photo)
-    return <img src={photo} alt={name} className={`${sz} rounded-full object-cover flex-shrink-0`} />;
+  const initial = (name && name !== 'Unknown') ? name.charAt(0).toUpperCase() : '?';
+
+  if (photo && !imgErr) {
+    return (
+      <img
+        src={photo}
+        alt={name || 'User'}
+        className={`${sz} rounded-full object-cover flex-shrink-0 border border-gray-200`}
+        onError={() => setImgErr(true)}
+      />
+    );
+  }
+
   return (
-    <div className={`${sz} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs`}
-      style={{ background: T.primaryD }}>
-      {name?.charAt(0)?.toUpperCase() ?? '?'}
+    <div
+      className={`${sz} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-base shadow-sm`}
+      style={{ background: T.primary || '#3B82F6' }}
+    >
+      {initial}
     </div>
   );
 }
 
-// ─── Rich Text Editor ─────────────────────────────────────────────────────────
+function VisibilityBadge({ visibility }: { visibility?: VisibilityKey }) {
+  const key = visibility && VISIBILITY[visibility] ? visibility : 'public';
+  const { label, icon: Icon } = VISIBILITY[key];
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+      style={{ color: '#000000', backgroundColor: '#E5E7EB' }}>
+      <Icon className="w-3 h-3" />
+      {label}
+    </span>
+  );
+}
+
 function RichTextEditor({ onChange }: { onChange: (html: string) => void }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const exec = (cmd: string) => {
@@ -105,17 +177,18 @@ function RichTextEditor({ onChange }: { onChange: (html: string) => void }) {
     onChange(editorRef.current?.innerHTML ?? '');
   };
   const tools = [
-    { icon: Bold,        cmd: 'bold',               title: 'Bold' },
-    { icon: Italic,      cmd: 'italic',             title: 'Italic' },
-    { icon: Underline,   cmd: 'underline',          title: 'Underline' },
-    { icon: AlignLeft,   cmd: 'justifyLeft',        title: 'Left' },
-    { icon: AlignCenter, cmd: 'justifyCenter',      title: 'Center' },
-    { icon: AlignRight,  cmd: 'justifyRight',       title: 'Right' },
-    { icon: List,        cmd: 'insertUnorderedList', title: 'List' },
+    { icon: Bold,        cmd: 'bold',                title: 'Bold' },
+    { icon: Italic,      cmd: 'italic',              title: 'Italic' },
+    { icon: Underline,   cmd: 'underline',           title: 'Underline' },
+    { icon: AlignLeft,   cmd: 'justifyLeft',         title: 'Left' },
+    { icon: AlignCenter, cmd: 'justifyCenter',       title: 'Center' },
+    { icon: AlignRight,  cmd: 'justifyRight',        title: 'Right' },
+    { icon: List,        cmd: 'insertUnorderedList',  title: 'List' },
   ];
   return (
     <div className="border rounded-xl overflow-hidden" style={{ borderColor: C.border }}>
-      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b" style={{ borderColor: C.borderSm, background: C.inputBg }}>
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b"
+        style={{ borderColor: C.borderSm, background: C.inputBg }}>
         {tools.map(({ icon: Icon, cmd, title }) => (
           <button key={cmd} type="button" title={title}
             onMouseDown={e => { e.preventDefault(); exec(cmd); }}
@@ -134,16 +207,16 @@ function RichTextEditor({ onChange }: { onChange: (html: string) => void }) {
   );
 }
 
-// ─── Create Post Box ──────────────────────────────────────────────────────────
 function CreatePostBox({ currentUser, onPosted }: {
   currentUser: { name: string; photo: string | null } | null;
   onPosted: () => void;
 }) {
-  const [html,    setHtml]    = useState('');
-  const [imgFile, setImgFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [posting, setPosting] = useState(false);
-  const [err,     setErr]     = useState('');
+  const [html,       setHtml]       = useState('');
+  const [imgFile,    setImgFile]    = useState<File | null>(null);
+  const [preview,    setPreview]    = useState<string | null>(null);
+  const [posting,    setPosting]    = useState(false);
+  const [err,        setErr]        = useState('');
+  const [visibility, setVisibility] = useState<VisibilityKey>('public');
   const fileRef = useRef<HTMLInputElement>(null);
   const plainText = html.replace(/<[^>]*>/g, '').trim();
 
@@ -155,11 +228,15 @@ function CreatePostBox({ currentUser, onPosted }: {
         const fd = new FormData();
         fd.append('textContent', html);
         fd.append('image', imgFile);
+        fd.append('visibility', visibility);
         await apiFetchForm('/socials/posts', 'POST', fd);
       } else {
-        await apiFetch('/socials/posts', { method: 'POST', body: JSON.stringify({ textContent: html }) });
+        await apiFetch('/socials/posts', {
+          method: 'POST',
+          body: JSON.stringify({ textContent: html, visibility }),
+        });
       }
-      setHtml(''); setImgFile(null); setPreview(null);
+      setHtml(''); setImgFile(null); setPreview(null); setVisibility('public');
       onPosted();
     } catch (e: any) { setErr(parseErr(e)); }
     finally { setPosting(false); }
@@ -171,6 +248,7 @@ function CreatePostBox({ currentUser, onPosted }: {
         <Avatar photo={currentUser?.photo} name={currentUser?.name} size={10} />
         <div className="flex-1">
           <RichTextEditor onChange={setHtml} />
+
           {preview && (
             <div className="relative mt-2 inline-block">
               <img src={preview} alt="preview" className="max-h-48 rounded-xl object-cover" />
@@ -180,18 +258,42 @@ function CreatePostBox({ currentUser, onPosted }: {
               </button>
             </div>
           )}
+
           {err && <p className="text-xs text-red-500 mt-1">{err}</p>}
-          <div className="flex items-center justify-between mt-3">
-            <button onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-gray-50"
-              style={{ borderColor: C.borderSm, color: C.textSub }}>
-              <Image className="w-4 h-4" /> Photo
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden"
-              onChange={e => {
-                const f = e.target.files?.[0];
-                if (f) { setImgFile(f); setPreview(URL.createObjectURL(f)); }
-              }} />
+
+          <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <button onClick={() => fileRef.current?.click()}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-gray-50"
+                style={{ borderColor: C.borderSm, color: '#000000' }}>
+                <Image className="w-4 h-4" /> Photo
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) { setImgFile(f); setPreview(URL.createObjectURL(f)); }
+                }} />
+
+              <div className="relative">
+                <select
+                  value={visibility}
+                  onChange={e => setVisibility(e.target.value as VisibilityKey)}
+                  className="appearance-none text-xs font-semibold pl-8 pr-3 py-1.5 rounded-lg border bg-white cursor-pointer outline-none text-black"
+                  style={{ borderColor: C.borderSm }}>
+                  <option value="public">Everyone</option>
+                  <option value="guides_only">Guides only</option>
+                  <option value="private">Only me</option>
+                </select>
+                {(() => {
+                  const Icon = VISIBILITY[visibility].icon;
+                  return (
+                    <Icon className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
+                      style={{ color: '#000000' }} />
+                  );
+                })()}
+              </div>
+            </div>
+
             <button onClick={submit} disabled={posting || (!plainText && !imgFile)}
               className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 transition-colors"
               style={{ background: T.primary }}>
@@ -205,7 +307,6 @@ function CreatePostBox({ currentUser, onPosted }: {
   );
 }
 
-// ─── Share Sheet ──────────────────────────────────────────────────────────────
 function ShareSheet({ postId, onClose, onShared }: {
   postId: string; onClose: () => void; onShared: () => void;
 }) {
@@ -221,13 +322,16 @@ function ShareSheet({ postId, onClose, onShared }: {
   const share = async (platform: string) => {
     setSharing(platform);
     try {
-      await apiFetch(`/socials/posts/${postId}/share`, { method: 'POST', body: JSON.stringify({ platform }) });
+      await apiFetch(`/socials/posts/${postId}/share`, {
+        method: 'POST', body: JSON.stringify({ platform }),
+      });
       if (platform === 'copy_link')
         navigator.clipboard.writeText(window.location.origin + `/posts/${postId}`);
       onShared(); onClose();
-    } catch { /* silent */ }
+    } catch {}
     finally { setSharing(null); }
   };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4"
@@ -256,7 +360,6 @@ function ShareSheet({ postId, onClose, onShared }: {
   );
 }
 
-// ─── Comments Drawer ──────────────────────────────────────────────────────────
 function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -296,7 +399,7 @@ function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) 
       setText(''); setImgFile(null); setPreview(null);
       load();
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 300);
-    } catch { /* silent */ }
+    } catch {}
     finally { setSending(false); }
   };
 
@@ -304,7 +407,7 @@ function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) 
     try {
       await apiFetch(`/socials/comments/${id}`, { method: 'DELETE' });
       setComments(p => p.filter(c => c.id !== id));
-    } catch { /* silent */ }
+    } catch {}
     setDeleteId(null);
   };
 
@@ -329,7 +432,9 @@ function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) 
               <Loader2 className="w-5 h-5 animate-spin" style={{ color: T.primary }} />
             </div>
           ) : comments.length === 0 ? (
-            <p className="text-center text-sm py-8" style={{ color: C.textMuted }}>No comments yet. Be the first!</p>
+            <p className="text-center text-sm py-8" style={{ color: C.textMuted }}>
+              No comments yet. Be the first!
+            </p>
           ) : comments.map(c => (
             <div key={c.id} className="flex gap-3">
               <Avatar photo={authorPhoto(c)} name={authorName(c)} size={8} />
@@ -376,7 +481,9 @@ function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) 
             placeholder="Write a comment…" rows={1}
             className="flex-1 resize-none text-sm outline-none rounded-xl px-3 py-2 border focus:ring-2"
             style={{ borderColor: C.border, background: C.inputBg }}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+            }} />
           <button onClick={send} disabled={sending || (!text.trim() && !imgFile)}
             className="p-2 rounded-xl text-white disabled:opacity-50 flex-shrink-0"
             style={{ background: T.primary }}>
@@ -394,17 +501,16 @@ function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) 
   );
 }
 
-// ─── Post Card ────────────────────────────────────────────────────────────────
 function PostCard({ post, onUpdate, onDelete, currentUserName }: {
-  post: Post;
-  onUpdate: (updated: Post) => void;
-  onDelete: (id: string) => void;
+  post:            Post;
+  onUpdate:        (updated: Post) => void;
+  onDelete:        (id: string) => void;
   currentUserName: string;
 }) {
-  const name = authorName(post);
+  const name  = authorName(post);
   const photo = authorPhoto(post);
 
-  const [liked,        setLiked]        = useState(false);
+  const [liked,        setLiked]        = useState(post.isLiked ?? false);
   const [likeCount,    setLikeCount]    = useState(post.likeCount ?? 0);
   const [bookmarked,   setBookmarked]   = useState(post.isBookmarked ?? false);
   const [shareCount,   setShareCount]   = useState(post.shareCount ?? 0);
@@ -417,11 +523,18 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
   const [editText,     setEditText]     = useState(post.textContent);
   const [saving,       setSaving]       = useState(false);
 
-  const isOwn = name === currentUserName;
+  const isOwn = name !== 'Unknown' && name === currentUserName;
 
-  const toggleLike = () => {
-    setLiked(p => !p);
-    setLikeCount(c => liked ? c - 1 : c + 1);
+  const toggleLike = async () => {
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount(c => wasLiked ? c - 1 : c + 1);
+    try {
+      await apiFetch(`/socials/posts/${post.id}/like`, { method: 'POST' });
+    } catch {
+      setLiked(wasLiked);
+      setLikeCount(c => wasLiked ? c + 1 : c - 1);
+    }
   };
 
   const toggleBookmark = async () => {
@@ -442,7 +555,7 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
       });
       onUpdate({ ...post, textContent: data.data?.textContent ?? editText });
       setEditing(false);
-    } catch { /* silent */ }
+    } catch {}
     finally { setSaving(false); }
   };
 
@@ -452,15 +565,19 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
         className="bg-white rounded-2xl border shadow-sm overflow-hidden"
         style={{ borderColor: C.border }}>
 
-        {/* Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-3">
             <Avatar photo={photo} name={name} size={10} />
             <div>
-              <p className="text-sm font-semibold" style={{ color: C.text }}>{name}</p>
-              <p className="text-[11px]" style={{ color: C.textMuted }}>{timeAgo(post.createdAt)}</p>
+              <p className="text-sm font-semibold leading-tight" style={{ color: C.text }}>{name}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-[11px]" style={{ color: C.textMuted }}>{timeAgo(post.createdAt)}</p>
+                <span style={{ color: C.textMuted }} className="text-[10px]">·</span>
+                <VisibilityBadge visibility={post.visibility} />
+              </div>
             </div>
           </div>
+
           {isOwn && (
             <div className="relative">
               <button onClick={() => setShowMenu(p => !p)}
@@ -470,12 +587,14 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
               {showMenu && (
                 <div className="absolute right-0 top-8 bg-white border rounded-xl shadow-lg z-10 overflow-hidden min-w-[130px]"
                   style={{ borderColor: C.border }}>
-                  <button onClick={() => { setEditing(true); setShowMenu(false); }}
+                  <button
+                    onClick={() => { setEditing(true); setShowMenu(false); }}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
                     style={{ color: C.textSub }}>
                     <Pencil className="w-4 h-4" /> Edit
                   </button>
-                  <button onClick={() => { setConfirmDel(true); setShowMenu(false); }}
+                  <button
+                    onClick={() => { setConfirmDel(true); setShowMenu(false); }}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
                     <Trash2 className="w-4 h-4" /> Delete
                   </button>
@@ -485,7 +604,6 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
           )}
         </div>
 
-        {/* Content */}
         <div className="px-4 pb-3">
           {editing ? (
             <div className="space-y-2">
@@ -498,7 +616,8 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
                   style={{ background: T.primary }}>
                   {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
                 </button>
-                <button onClick={() => { setEditing(false); setEditText(post.textContent); }}
+                <button
+                  onClick={() => { setEditing(false); setEditText(post.textContent); }}
                   className="px-4 py-1.5 rounded-lg border text-xs font-semibold hover:bg-gray-50"
                   style={{ borderColor: C.border, color: C.textSub }}>
                   Cancel
@@ -506,22 +625,21 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
               </div>
             </div>
           ) : (
-            <div className="text-sm leading-relaxed"
-              style={{ color: C.textSub }}
+            <div className="text-sm leading-relaxed" style={{ color: C.textSub }}
               dangerouslySetInnerHTML={{ __html: post.textContent }} />
           )}
         </div>
 
-        {/* Image */}
         {post.image && (
           <div className="px-4 pb-3">
             <img src={post.image} alt="" className="w-full rounded-xl object-cover max-h-80" />
           </div>
         )}
 
-        {/* Stats */}
         <div className="px-4 pb-2 flex items-center gap-4 text-xs" style={{ color: C.textMuted }}>
-          {likeCount > 0 && <span>{likeCount} {likeCount === 1 ? 'like' : 'likes'}</span>}
+          {likeCount > 0 && (
+            <span>{likeCount} {likeCount === 1 ? 'like' : 'likes'}</span>
+          )}
           {commentCount > 0 && (
             <button onClick={() => setShowComments(true)} className="hover:underline">
               {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
@@ -530,32 +648,34 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
           {shareCount > 0 && <span>{shareCount} shares</span>}
         </div>
 
-        {/* Actions */}
-        <div className="border-t mx-4 py-1 flex items-center justify-around" style={{ borderColor: C.borderSm }}>
+        <div className="border-t mx-4 py-1 flex items-center justify-around"
+          style={{ borderColor: C.borderSm }}>
           <button onClick={toggleLike}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
-            style={{ color: liked ? C.accent : C.textMuted }}>
-            <Heart className={`w-4 h-4 transition-all ${liked ? 'fill-[#FF6B35]' : ''}`} />
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+            style={{ color: liked ? C.accent : '#000000' }}>
+            <Heart className={`w-4 h-4 transition-all ${liked ? 'fill-[#FF6B35] scale-110' : ''}`} />
             {likeCount > 0 ? likeCount : 'Like'}
           </button>
 
           <button onClick={() => setShowComments(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors hover:bg-gray-50"
-            style={{ color: C.textMuted }}>
+            style={{ color: '#000000' }}>
             <MessageCircle className="w-4 h-4" />
             {commentCount > 0 ? commentCount : 'Comment'}
           </button>
 
           <button onClick={toggleBookmark}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
-            style={{ color: bookmarked ? C.save : C.textMuted }}>
-            {bookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+            style={{ color: bookmarked ? C.save : '#000000' }}>
+            {bookmarked
+              ? <BookmarkCheck className="w-4 h-4" />
+              : <Bookmark className="w-4 h-4" />}
             {bookmarked ? 'Saved' : 'Save'}
           </button>
 
           <button onClick={() => setShowShare(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors"
-            style={{ color: C.textMuted }}>
+            style={{ color: '#000000' }}>
             <Share2 className="w-4 h-4" />
             {shareCount > 0 ? shareCount : 'Share'}
           </button>
@@ -572,25 +692,29 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
           }} />
         )}
         {showShare && (
-          <ShareSheet postId={post.id} onClose={() => setShowShare(false)}
-            onShared={() => setShareCount(c => c + 1)} />
+          <ShareSheet
+            postId={post.id}
+            onClose={() => setShowShare(false)}
+            onShared={() => setShareCount(c => c + 1)}
+          />
         )}
       </AnimatePresence>
 
       {confirmDel && (
-        <Confirm msg="Delete this post? This cannot be undone."
+        <Confirm
+          msg="Delete this post? This cannot be undone."
           onConfirm={async () => {
             await apiFetch(`/socials/posts/${post.id}`, { method: 'DELETE' });
             onDelete(post.id);
             setConfirmDel(false);
           }}
-          onCancel={() => setConfirmDel(false)} />
+          onCancel={() => setConfirmDel(false)}
+        />
       )}
     </>
   );
 }
 
-// ─── Main Export ──────────────────────────────────────────────────────────────
 export function SocialFeed({ toast, currentUser }: {
   toast?: ToastFn;
   currentUser?: { name: string; photo: string | null } | null;
@@ -622,7 +746,9 @@ export function SocialFeed({ toast, currentUser }: {
           {(['feed', 'saved'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className="px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors"
-              style={tab === t ? { background: T.primary, color: '#fff' } : { color: C.textSub }}>
+              style={tab === t
+                ? { background: T.primary, color: '#fff' }
+                : { color: C.textSub }}>
               {t === 'feed' ? 'Feed' : 'Saved'}
             </button>
           ))}
@@ -642,7 +768,9 @@ export function SocialFeed({ toast, currentUser }: {
        ) : (
         <div className="space-y-4">
           {posts.map(p => (
-            <PostCard key={p.id} post={p}
+            <PostCard
+              key={p.id}
+              post={p}
               currentUserName={currentUser?.name ?? ''}
               onUpdate={updated => setPosts(prev => prev.map(x => x.id === updated.id ? updated : x))}
               onDelete={id => setPosts(prev => prev.filter(x => x.id !== id))}

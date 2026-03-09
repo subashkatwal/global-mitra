@@ -18,7 +18,7 @@ from datetime import timedelta
 
 from accounts.models import User
 from reports.models import IncidentReport, IncidentCluster, AlertBroadcast, Notification
-from reports.tasks import analyze_incident_reports
+from reports.clustering import analyze_incident_reports
 
 
 class Command(BaseCommand):
