@@ -42,11 +42,11 @@ const C = {
 
 // DBSCAN pipeline constants — mirror globalmitra_django.py
 const PIPELINE = {
-  TIME_WINDOW_HOURS:   6,
+  TIME_WINDOW_HOURS:   3,
   GEO_RADIUS_KM:       3.0,
   MIN_CLUSTER_REPORTS: 3,
   DBSCAN_EPS:          0.62,
-  DBSCAN_MIN_SAMPLES:  2,
+  DBSCAN_MIN_SAMPLES:  3,
 };
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -212,13 +212,13 @@ function LocationGate({
   );
 }
 
-// ─── OpenStreetMap embed ──────────────────────────────────────────────────────
+
 function MapEmbed({ lat, lng, clusters }: { lat: number; lng: number; clusters: Cluster[] }) {
   const bbox = `${lng - 0.07},${lat - 0.05},${lng + 0.07},${lat + 0.05}`;
   const src  = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
 
   // pick up to 3 cluster labels for the overlay
-  const labels = clusters.slice(0, 3).map((c, i) => ({
+  const labels = clusters.slice(0, 3).map((c) => ({
     label: c.location,
     color: (c.isAlertTriggered || c.reportCount >= PIPELINE.MIN_CLUSTER_REPORTS) ? '#EF4444' : '#F59E0B',
   }));
@@ -414,8 +414,8 @@ export function ReportPage({ isOpen, onClose, placeId }: ReportPageProps) {
     setAlertsLoading(true);
     try {
       let data: any;
-      try       { data = await apiFetch('/incidents/clusters'); }
-      catch (_) { data = await apiFetch('/reports/alerts');    }
+      try       { data = await apiFetch('/clusters'); }
+      catch (_) { data = await apiFetch('/reports/alerts'); }
       const items: any[] = data.results ?? data.clusters ?? data.data ?? (Array.isArray(data) ? data : []);
       setClusters(items.map((r: any): Cluster => ({
         id:               r.id,
@@ -468,7 +468,7 @@ export function ReportPage({ isOpen, onClose, placeId }: ReportPageProps) {
       fd.append('image',       photoFile!);
       if (placeId) fd.append('placeId', placeId);
 
-      await apiFetchForm('/incidents/reports', fd);
+      await apiFetchForm('/reports', fd);
 
       setSuccessMsg('Report submitted! Thank you for keeping travellers safe.');
       setDescription('');

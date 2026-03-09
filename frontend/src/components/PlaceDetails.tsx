@@ -207,10 +207,7 @@ export function PlaceDetails({ placeId, onBack, onReportClick }: PlaceDetailsPro
                 {safetyLabel}
               </span>
             )}
-            <span className="flex items-center gap-1 bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-semibold text-white border border-white/30">
-              <Star className="w-3 h-3 text-yellow-300 fill-yellow-300" />
-              4.9
-            </span>
+            
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-2 drop-shadow">{d.name}</h1>
           {location && (
