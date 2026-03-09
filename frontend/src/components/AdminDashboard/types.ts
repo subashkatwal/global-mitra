@@ -1,17 +1,17 @@
-// ─── Auth / User ─────────────────────────────────────────────────────────────
-export interface User {
-  id:          string;
-  email:       string;
-  fullName:    string;
-  phoneNumber?: string;
-  photo?:      string | null;
-  role:        'TOURIST' | 'GUIDE' | 'ADMIN';
-  verified:    boolean;   
-  isActive:    boolean;
-  createdAt:   string;
-  updatedAt:   string;
-}
+export type AdminPage = 'dashboard' | 'users' | 'guides' | 'posts' | 'reports' | 'destinations';
 
+export interface User {
+  id:           string;
+  email:        string;
+  fullName:     string;
+  phoneNumber?: string;
+  photo?:       string | null;
+  role:         'TOURIST' | 'GUIDE' | 'ADMIN';
+  verified:     boolean;
+  isActive:     boolean;
+  createdAt:    string;
+  updatedAt:    string;
+}
 
 export interface Guide {
   id:                 string;
@@ -21,16 +21,63 @@ export interface Guide {
   bio:                string;
   createdAt:          string;
   user?: {
-    id:           string;
-    fullName:     string;
-    email:        string;
-    photo:        string | null;
-    phoneNumber:  string;
+    id:          string;
+    fullName:    string;
+    email:       string;
+    photo:       string | null;
+    phoneNumber: string;
   };
 }
 
-export type ToastFn = (msg: string, type?: 'success' | 'error' | 'info') => void;
+export interface Post {
+  id:             string;
+  textContent:    string;
+  image?:         string | null;
+  createdAt:      string;
+  commentCount?:  number;
+  shareCount?:    number;
+  bookmarkCount?: number;
+  author?: {
+    fullName?:  string;
+    full_name?: string;
+    email?:     string;
+    photo?:     string | null;
+  };
+}
 
+export interface Report {
+  id:        string;
+  type:      string;
+  title:     string;
+  place?:    string;
+  status?:   string;
+  createdAt: string;
+  reporter?: { fullName: string };
+}
+
+export interface Destination {
+  id:           string;
+  name:         string;
+  district:     string;
+  difficulty:   string;
+  averageCost:  number;
+  altitude?:    number;
+  description?: string;
+  bestSeason?:  string;
+  duration?:    string;
+  country?:     string;
+}
+
+export interface Stats {
+  totalUsers:           number;
+  activeGuides:         number;
+  pendingVerifications: number;
+  totalPosts:           number;
+  safetyReports:        number;
+  destinations:         number;
+}
+
+export type ToastFn = (msg: string, type?: 'success' | 'error' | 'info') => void;
 
 export type PlaceCategory =
   | 'mountain'
@@ -51,13 +98,6 @@ export interface PlaceLocation {
   longitude: number;
 }
 
-export interface Report {
-  id:        string;
-  userId:    string;
-  content:   string;
-  createdAt: string;
-}
-
 export interface Place {
   id:          string;
   name:        string;
@@ -72,7 +112,6 @@ export interface Place {
   reports:     Report[];
   imageUrl?:   string;
 }
-
 
 export interface FilterOptions {
   categories:   PlaceCategory[];
