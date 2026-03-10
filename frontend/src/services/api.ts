@@ -294,7 +294,7 @@ export const postsApi = {
 
 export const reportsApi = {
   getAll: async (): Promise<ApiResponse<Report[]>> => {
-    const response = await apiFetch('/v1/reports/');
+    const response = await apiFetch('/v1/reports');
     return response.json();
   },
 
@@ -315,7 +315,7 @@ export const reportsApi = {
     if (data.crowdLevel) formData.append('crowdLevel', data.crowdLevel);
     formData.append('tags', JSON.stringify(data.tags));
     data.images.forEach((image, i) => formData.append(`image_${i}`, image));
-    const response = await apiFetchFormData('/v1/reports/', formData);
+    const response = await apiFetchFormData('/v1/reports', formData);
     return response.json();
   },
 };
