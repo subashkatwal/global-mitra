@@ -9,6 +9,23 @@ interface DashboardPageProps {
   onNav: (page: AdminPage) => void;
 }
 
+/** Robustly extract a count from any API response shape */
+function extractCount(val: any): number {
+  if (val === null || val === undefined) return 0;
+  // paginated: { count: N, results: [...] }
+  if (typeof val.count === 'number') return val.count;
+  // overview endpoint: { totalReports: N, ... }
+  if (typeof val.totalReports === 'number') return val.totalReports;
+  if (typeof val.total_reports === 'number') return val.total_reports;
+  // flat array
+  if (Array.isArray(val)) return val.length;
+  // { data: [...] }
+  if (Array.isArray(val.data)) return val.data.length;
+  // { results: [...] } without count key
+  if (Array.isArray(val.results)) return val.results.length;
+  return 0;
+}
+
 export function DashboardPage({ onNav }: DashboardPageProps) {
   const [stats,   setStats]   = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,19 +39,21 @@ export function DashboardPage({ onNav }: DashboardPageProps) {
         apiFetch('/auth/guides'),
         apiFetch('/auth/guides/pending'),
         apiFetch('/socials/posts'),
-        apiFetch('/reports'),
+        // try overview first (has totalReports), fall back to paginated list
+        apiFetch('/reports/overview').catch(() => apiFetch('/reports/?page_size=1')),
         apiFetch('/destinations'),
       ]);
+
       const get = (r: PromiseSettledResult<any>) =>
         r.status === 'fulfilled' ? r.value : null;
 
       setStats({
-        totalUsers:           get(users)?.count   ?? get(users)?.length   ?? 0,
-        activeGuides:         get(guides)?.count  ?? get(guides)?.length  ?? 0,
-        pendingVerifications: get(pending)?.count ?? get(pending)?.length ?? 0,
-        totalPosts:           get(posts)?.count   ?? get(posts)?.length   ?? 0,
-        safetyReports:        get(reports)?.count ?? get(reports)?.length ?? 0,
-        destinations:         get(dests)?.count   ?? get(dests)?.length   ?? 0,
+        totalUsers:           extractCount(get(users)),
+        activeGuides:         extractCount(get(guides)),
+        pendingVerifications: extractCount(get(pending)),
+        totalPosts:           extractCount(get(posts)),
+        safetyReports:        extractCount(get(reports)),
+        destinations:         extractCount(get(dests)),
       });
     } catch (e: any) {
       setErr(parseErr(e));

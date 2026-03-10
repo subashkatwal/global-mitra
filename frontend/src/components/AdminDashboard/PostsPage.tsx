@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Plus, Search, Pencil, Trash2, Save, Loader2, RefreshCw, Eye,
-         MessageCircle, Share2, Bookmark, Heart, Copy, Check, Globe, Users, Lock } from 'lucide-react';
+         MessageCircle, Share2, Bookmark, Heart, Copy, Check, Globe, Users, Lock,
+         ImagePlus, X as XIcon } from 'lucide-react';
 import { T, apiFetch, parseErr } from './utils';
 import { Spinner, ErrMsg, Empty, Modal, FormField, inputCls, inputStyle,
          Confirm, Pagination, Table, Tr, Td, ActionBtn } from './ui';
 import type { Post, ToastFn } from './types';
 
-// ─── Visibility config (mirrors SocialFeed) ───────────────────────────────────
+// ─── Visibility config ────────────────────────────────────────────────────────
 const VISIBILITY = {
   public:      { label: 'Everyone',    icon: Globe,  color: '#10B981' },
   guides_only: { label: 'Guides only', icon: Users,  color: '#6366F1' },
@@ -27,40 +28,29 @@ function VisibilityPill({ v }: { v?: string }) {
   );
 }
 
-// ─── Robust author helpers (same logic as SocialFeed) ─────────────────────────
+// ─── Author helpers ───────────────────────────────────────────────────────────
 function resolveAuthorName(post: Post): string {
   const a = post.author;
   const candidates = [
-    a?.fullName,
-    a?.full_name,
-    (a as any)?.name,
-    (post as any).fullName,
-    (post as any).full_name,
-    (post as any).userName,
+    a?.fullName, a?.full_name, (a as any)?.name,
+    (post as any).fullName, (post as any).full_name, (post as any).userName,
   ];
   for (const c of candidates) {
     if (c && typeof c === 'string' && c.trim() && !c.includes('@')) return c.trim();
   }
   return '—';
 }
-
 function resolveAuthorEmail(post: Post): string {
   return post.author?.email ?? (post as any).email ?? '';
 }
-
 function resolveAuthorPhoto(post: Post): string | null {
   const a = post.author;
   return (
-    a?.photo               ??
-    (a as any)?.avatar     ??
-    (a as any)?.profilePhoto ??
-    (post as any).userPhoto  ??
-    (post as any).profilePhoto ??
-    null
+    a?.photo ?? (a as any)?.avatar ?? (a as any)?.profilePhoto ??
+    (post as any).userPhoto ?? (post as any).profilePhoto ?? null
   );
 }
 
-/** Human-readable relative time */
 function timeAgo(iso: string): string {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 10)    return 'just now';
@@ -78,7 +68,6 @@ function shortId(id: string): string {
   return id.length > 8 ? '…' + id.slice(-8) : id;
 }
 
-// ─── Author Avatar with image-error fallback ──────────────────────────────────
 function AuthorAvatar({ photo, name, size = 10 }: { photo?: string | null; name: string; size?: number }) {
   const [imgErr, setImgErr] = useState(false);
   const sz = `w-${size} h-${size}`;
@@ -98,7 +87,6 @@ function AuthorAvatar({ photo, name, size = 10 }: { photo?: string | null; name:
   );
 }
 
-// ─── Copyable ID ──────────────────────────────────────────────────────────────
 function CopyableId({ id }: { id: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -112,12 +100,91 @@ function CopyableId({ id }: { id: string }) {
       <span className="text-xs font-semibold flex-shrink-0" style={{ color: T.textMuted }}>Post ID</span>
       <span className="text-xs font-mono flex-1 truncate" style={{ color: T.textSub }}>{id}</span>
       <button onClick={copy}
-        className="flex-shrink-0 p-1 rounded-lg hover:bg-white transition-colors"
-        title="Copy ID">
+        className="flex-shrink-0 p-1 rounded-lg hover:bg-white transition-colors" title="Copy ID">
         {copied
           ? <Check className="w-3.5 h-3.5 text-emerald-500" />
           : <Copy  className="w-3.5 h-3.5" style={{ color: T.textMuted }} />}
       </button>
+    </div>
+  );
+}
+
+// ─── Image Upload Field ───────────────────────────────────────────────────────
+function ImageUploadField({
+  preview,
+  onFile,
+  onClear,
+  error,
+}: {
+  preview: string | null;
+  onFile: (file: File, previewUrl: string) => void;
+  onClear: () => void;
+  error?: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    onFile(f, URL.createObjectURL(f));
+    // reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-semibold" style={{ color: T.textMain }}>
+        Image <span className="font-normal text-xs" style={{ color: T.textMuted }}>(optional)</span>
+      </label>
+
+      {preview ? (
+        /* ── preview state ── */
+        <div className="relative rounded-2xl overflow-hidden border"
+          style={{ borderColor: T.border }}>
+          <img src={preview} alt="post preview"
+            className="w-full object-cover max-h-52" />
+          <button
+            onClick={onClear}
+            className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center
+              bg-black/50 hover:bg-black/70 transition-colors"
+            title="Remove image">
+            <XIcon className="w-3.5 h-3.5 text-white" />
+          </button>
+          <div className="absolute bottom-0 left-0 right-0 px-3 py-2
+            bg-gradient-to-t from-black/40 to-transparent pointer-events-none">
+            <p className="text-white text-[11px] font-medium">Click × to remove</p>
+          </div>
+        </div>
+      ) : (
+        /* ── upload prompt ── */
+        <button
+          onClick={() => ref.current?.click()}
+          className={`w-full flex flex-col items-center justify-center gap-2 py-7 rounded-2xl
+            border-2 border-dashed transition-all hover:opacity-80
+            ${error ? 'bg-red-50' : 'bg-white hover:bg-slate-50'}`}
+          style={{ borderColor: error ? '#EF4444' : T.border }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: T.primary + '14' }}>
+            <ImagePlus className="w-5 h-5" style={{ color: T.primary }} />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-semibold" style={{ color: error ? '#DC2626' : T.textSub }}>
+              {error ?? 'Click to upload image'}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>
+              JPG, PNG or WebP · max 5 MB
+            </p>
+          </div>
+        </button>
+      )}
+
+      <input
+        ref={ref}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleChange}
+      />
     </div>
   );
 }
@@ -128,7 +195,12 @@ function PostFormModal({ post, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [content, setContent] = useState(post?.textContent ?? '');
+  const [content,      setContent]      = useState(post?.textContent ?? '');
+  const [imageFile,    setImageFile]    = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    // show existing image when editing
+    post?.image ?? null
+  );
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState('');
 
@@ -141,13 +213,36 @@ function PostFormModal({ post, onClose, onSaved }: {
     setSaving(true); setErr('');
     try {
       if (post) {
+        // ── EDIT: use JSON PATCH (image editing kept simple) ──────────────
         await apiFetch(`/socials/posts/${post.id}`, {
-          method: 'PATCH', body: JSON.stringify({ textContent: content }),
+          method: 'PATCH',
+          body: JSON.stringify({ textContent: content }),
         });
       } else {
-        await apiFetch('/socials/posts', {
-          method: 'POST', body: JSON.stringify({ textContent: content }),
-        });
+        // ── ADD: multipart if image selected, JSON otherwise ─────────────
+        if (imageFile) {
+          const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+          const fd = new FormData();
+          fd.append('textContent', content);
+          fd.append('image', imageFile);
+          const API_BASE =
+            (typeof window !== 'undefined' && (window as any).__ENV__?.VITE_API_URL) ||
+            (import.meta as any).env?.VITE_API_URL || '/api/v1';
+          const res = await fetch(`${API_BASE}/socials/posts`, {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: fd,
+          });
+          if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw { status: res.status, data: e };
+          }
+        } else {
+          await apiFetch('/socials/posts', {
+            method: 'POST',
+            body: JSON.stringify({ textContent: content }),
+          });
+        }
       }
       onSaved();
     } catch (e: any) { setErr(parseErr(e)); }
@@ -157,14 +252,14 @@ function PostFormModal({ post, onClose, onSaved }: {
   return (
     <Modal title={post ? 'Edit Post' : 'Add Post'} onClose={onClose}>
       {err && (
-        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{err}</div>
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+          {err}
+        </div>
       )}
 
       {post && (
         <div className="mb-4 space-y-3">
           <CopyableId id={post.id} />
-
-          {/* Author card */}
           <div className="flex items-center gap-3 p-3 rounded-xl border"
             style={{ borderColor: T.borderSm, background: T.bgSoft }}>
             <AuthorAvatar photo={photo} name={name || '?'} size={9} />
@@ -176,9 +271,7 @@ function PostFormModal({ post, onClose, onSaved }: {
                 <p className="text-xs truncate" style={{ color: T.textMuted }}>{email}</p>
               )}
             </div>
-            {/* Visibility */}
             <VisibilityPill v={(post as any).visibility} />
-            {/* Stats */}
             <div className="ml-2 flex items-center gap-3 flex-shrink-0 text-xs" style={{ color: T.textMuted }}>
               <span className="flex items-center gap-1">
                 <Heart className="w-3.5 h-3.5" style={{ color: '#FF6B35' }} />
@@ -201,25 +294,37 @@ function PostFormModal({ post, onClose, onSaved }: {
         </div>
       )}
 
+      {/* Content field */}
       <FormField label="Content" req>
         <textarea
           value={content}
-          onChange={e => setContent(e.target.value)}
-          rows={5}
+          onChange={e => { setContent(e.target.value); setErr(''); }}
+          rows={4}
           placeholder="Write post content..."
           className={inputCls + ' resize-none'}
           style={inputStyle}
         />
       </FormField>
+
+      {/* Image upload — shown for both Add and Edit */}
+      <div className="mt-4">
+        <ImageUploadField
+          preview={imagePreview}
+          onFile={(file, url) => { setImageFile(file); setImagePreview(url); }}
+          onClear={() => { setImageFile(null); setImagePreview(null); }}
+        />
+      </div>
+
+      {/* Actions */}
       <div className="flex gap-3 mt-6">
         <button onClick={handleSubmit} disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-60"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-60 hover:opacity-90 transition-opacity"
           style={{ background: T.primary }}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {post ? 'Save Changes' : 'Add Post'}
         </button>
         <button onClick={onClose}
-          className="px-5 py-2.5 border rounded-xl text-sm font-semibold hover:bg-gray-50"
+          className="px-5 py-2.5 border rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
           style={{ borderColor: T.border, color: T.textSub }}>
           Cancel
         </button>
@@ -239,7 +344,6 @@ function PostDetailModal({ post, onClose }: { post: Post; onClose: () => void })
       <div className="space-y-4">
         <CopyableId id={post.id} />
 
-        {/* Author row */}
         <div className="flex items-center gap-3">
           <AuthorAvatar photo={photo} name={name || '?'} size={10} />
           <div className="flex-1 min-w-0">
@@ -249,7 +353,6 @@ function PostDetailModal({ post, onClose }: { post: Post; onClose: () => void })
           <VisibilityPill v={(post as any).visibility} />
         </div>
 
-        {/* Content */}
         <div className="p-3 rounded-xl text-sm leading-relaxed"
           style={{ background: T.bgSoft, color: T.textSub }}>
           {post.textContent}
@@ -259,7 +362,6 @@ function PostDetailModal({ post, onClose }: { post: Post; onClose: () => void })
           <img src={post.image} alt="" className="w-full rounded-xl object-cover max-h-64" />
         )}
 
-        {/* Stats grid */}
         <div className="grid grid-cols-4 gap-3">
           {[
             { icon: Heart,         label: 'Likes',    value: (post as any).likeCount, color: '#FF6B35' },
@@ -333,7 +435,7 @@ export function PostsPage({ toast }: { toast: ToastFn }) {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} style={{ color: T.textMid }} />
           </button>
           <button onClick={() => setModal('add')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold hover:opacity-90"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition-opacity"
             style={{ background: T.primary }}>
             <Plus className="w-4 h-4" /> Add Post
           </button>
@@ -364,7 +466,6 @@ export function PostsPage({ toast }: { toast: ToastFn }) {
                 const photo = resolveAuthorPhoto(p);
                 return (
                   <Tr key={p.id}>
-                    {/* ID */}
                     <Td>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-mono px-2 py-0.5 rounded-lg"
@@ -379,8 +480,6 @@ export function PostsPage({ toast }: { toast: ToastFn }) {
                         </button>
                       </div>
                     </Td>
-
-                    {/* Author */}
                     <Td>
                       <div className="flex items-center gap-2 min-w-[140px]">
                         <AuthorAvatar photo={photo} name={name || '?'} size={7} />
@@ -394,24 +493,24 @@ export function PostsPage({ toast }: { toast: ToastFn }) {
                         </div>
                       </div>
                     </Td>
-
-                    {/* Content */}
                     <Td>
-                      <span className="line-clamp-2 max-w-xs block text-sm" style={{ color: T.textSub }}>
-                        {p.textContent}
-                      </span>
+                      <div className="flex items-center gap-2 max-w-xs">
+                        {/* thumbnail if image exists */}
+                        {p.image && (
+                          <img src={p.image} alt=""
+                            className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border"
+                            style={{ borderColor: T.borderSm }} />
+                        )}
+                        <span className="line-clamp-2 block text-sm" style={{ color: T.textSub }}>
+                          {p.textContent}
+                        </span>
+                      </div>
                     </Td>
-
-                    {/* Visibility */}
                     <Td><VisibilityPill v={(p as any).visibility} /></Td>
-
-                    {/* Stats */}
                     <Td><span className="text-sm">{(p as any).likeCount ?? 0}</span></Td>
                     <Td><span className="text-sm">{p.bookmarkCount ?? 0}</span></Td>
                     <Td><span className="text-sm">{p.commentCount  ?? 0}</span></Td>
                     <Td><span className="text-sm">{p.shareCount    ?? 0}</span></Td>
-
-                    {/* Posted */}
                     <Td>
                       <div>
                         <p className="text-xs font-medium" style={{ color: T.textSub }}>
@@ -422,8 +521,6 @@ export function PostsPage({ toast }: { toast: ToastFn }) {
                         </p>
                       </div>
                     </Td>
-
-                    {/* Actions */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <ActionBtn icon={Eye}    color="#6366F1" title="View"
