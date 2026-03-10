@@ -133,7 +133,7 @@ export function Navbar({
             <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
 
               {/* Compare button — navigates to 'compare' view via onComparisonClick */}
-              <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
+              {/* <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
                 onClick={onComparisonClick}
                 className={`hidden xl:flex items-center gap-1.5 px-3 py-2 rounded-lg border text-[12px] font-semibold transition-colors relative whitespace-nowrap ${
                   isOnCompare
@@ -146,7 +146,7 @@ export function Navbar({
                     {comparisonCount}
                   </span>
                 )}
-              </motion.button>
+              </motion.button> */}
 
               {/* Bell */}
               {isAuthenticated && (

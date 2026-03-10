@@ -1,44 +1,3 @@
-/**
- * ReportsPage — Admin Dashboard
- *
- * Django API endpoints (matching reports/urls.py conventions):
- *   GET    /reports/                           → paginated IncidentReport list
- *   GET    /reports/?status=PENDING&page=1     → filtered list
- *   POST   /reports/{id}/verify/               → set status=VERIFIED
- *   POST   /reports/{id}/reject/               → set status=REJECTED
- *   DELETE /reports/{id}/                      → hard delete
- *   GET    /reports/overview/                  → stats + weekly + by-category
- *
- *   GET    /reports/clusters/                  → IncidentCluster list
- *   POST   /reports/clusters/{id}/broadcast/   → create AlertBroadcast (manual)
- *
- *   GET    /reports/alerts/                    → AlertBroadcast list
- *
- * Django model field names (DRF default = snake_case):
- *   IncidentReport  → id, description, category, latitude, longitude,
- *                     status, confidence_score, image, created_at,
- *                     user { full_name, email }
- *
- *   IncidentCluster → id, center_latitude, center_longitude,
- *                     top_keywords, confidence_score, dominant_category,
- *                     is_alert_triggered, created_at, report_count
- *
- *   AlertBroadcast  → id, message, severity, trigger_type,
- *                     cluster { dominant_category,
- *                               center_latitude, center_longitude },
- *                     created_at, sent_by (email string)
- *
- * Clustering (reports/clustering.py constants):
- *   TIME_WINDOW_HOURS   = 3
- *   GEO_RADIUS_KM       = 3.0
- *   MIN_CLUSTER_REPORTS = 3
- *   DBSCAN_EPS          = 0.62
- *   confidence_score stored as 0.0–1.0  → ×100 for display
- *
- * Signal: post_save on IncidentReport → run_clustering() synchronously
- * Status flow: PENDING → VERIFIED | REJECTED | AUTO_VERIFIED (via clustering)
- */
-
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -50,7 +9,6 @@ import { T, apiFetch, parseErr } from './utils';
 import { Spinner, ErrMsg, Empty, Confirm, Pagination } from './ui';
 import type { ToastFn } from './types';
 
-// ─── Theme ────────────────────────────────────────────────────────────────────
 const C = {
   text:      T.textMain,
   textSub:   T.textSub,
@@ -62,7 +20,6 @@ const C = {
   pill:      '#F1F5F9',
 };
 
-// ─── Category config (matches IncidentReport.CATEGORY_CHOICES) ────────────────
 const CATEGORIES: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
   ROAD_BLOCK: { label: 'Road Block', color: '#B45309', bg: '#FEF3C7', emoji: '🚧' },
   WEATHER:    { label: 'Weather',    color: '#0369A1', bg: '#E0F2FE', emoji: '🌦️' },
@@ -72,12 +29,12 @@ const CATEGORIES: Record<string, { label: string; color: string; bg: string; emo
   WILDLIFE:   { label: 'Wildlife',   color: '#166534', bg: '#DCFCE7', emoji: '🐾' },
   OTHER:      { label: 'Other',      color: '#475569', bg: '#F1F5F9', emoji: '📋' },
 };
+
 function catCfg(cat?: string) {
   const k = (cat ?? '').toUpperCase().replace(/\s+/g, '_');
   return CATEGORIES[k] ?? CATEGORIES.OTHER;
 }
 
-// ─── Status config (IncidentReport.STATUS_CHOICES) ────────────────────────────
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
   pending:       { label: 'Pending',       color: '#D97706', bg: '#FEF3C7' },
   verified:      { label: 'Verified',      color: '#059669', bg: '#D1FAE5' },
@@ -85,11 +42,11 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   auto_verified: { label: 'Auto Verified', color: '#7C3AED', bg: '#EDE9FE' },
   auto_alerted:  { label: 'Auto Alerted',  color: '#7C3AED', bg: '#EDE9FE' },
 };
+
 function stCfg(s?: string) {
   return STATUS_CFG[(s ?? '').toLowerCase()] ?? STATUS_CFG.pending;
 }
 
-// ─── Severity config (AlertBroadcast.SEVERITY_CHOICES) ───────────────────────
 const SEV_CFG: Record<string, { color: string; bg: string }> = {
   LOW:      { color: '#0369A1', bg: '#E0F2FE' },
   MEDIUM:   { color: '#D97706', bg: '#FEF3C7' },
@@ -97,7 +54,6 @@ const SEV_CFG: Record<string, { color: string; bg: string }> = {
   CRITICAL: { color: '#DC2626', bg: '#FEE2E2' },
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface Report {
   id:             string;
   category?:      string;
@@ -150,7 +106,6 @@ interface Overview {
   weeklyChange?:    number;
 }
 
-// ─── Normalise snake_case → camelCase from DRF ───────────────────────────────
 function normReport(r: any): Report {
   return {
     id:             r.id,
@@ -217,7 +172,6 @@ function normOverview(raw: any): Overview {
   };
 }
 
-// ─── Display helpers ──────────────────────────────────────────────────────────
 function timeAgo(iso?: string): string {
   if (!iso) return '—';
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -246,7 +200,6 @@ function rEmail(r: Report): string {
   return (r.reporter as any)?.email ?? '';
 }
 
-// confidence_score is 0.0–1.0 from Python — multiply × 100 for %
 function confPct(score?: number): number {
   if (!score) return 0;
   return score <= 1 ? Math.round(score * 100) : Math.round(score);
@@ -255,8 +208,6 @@ function confPct(score?: number): number {
 function shortId(id: string): string {
   return `rpt-${id.replace(/-/g, '').slice(-4).toUpperCase()}`;
 }
-
-// ─── Shared components ────────────────────────────────────────────────────────
 
 function CatPill({ cat }: { cat?: string }) {
   const c = catCfg(cat);
@@ -309,7 +260,6 @@ function StatCard({ label, value, sub, accent, icon: Icon }:
   );
 }
 
-// ─── Report Detail Modal ──────────────────────────────────────────────────────
 function ReportDetailModal({ report, onClose, onVerify, onReject }:
   { report: Report; onClose: () => void; onVerify: () => void; onReject: () => void }) {
 
@@ -330,7 +280,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
         style={{ maxHeight: '90vh' }}
         onClick={e => e.stopPropagation()}>
 
-        {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b"
           style={{ borderColor: C.borderSm }}>
           <span className="text-xl">{cat.emoji}</span>
@@ -344,7 +293,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
         <div className="overflow-y-auto px-5 py-4 space-y-4"
           style={{ maxHeight: 'calc(90vh - 130px)' }}>
 
-          {/* Status + ID row */}
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge status={report.status} />
@@ -356,7 +304,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
             </span>
           </div>
 
-          {/* Description */}
           <div className="p-4 rounded-xl" style={{ background: C.bg }}>
             <p className="text-xs font-semibold mb-1.5" style={{ color: C.textMuted }}>
               Description
@@ -366,7 +313,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
             </p>
           </div>
 
-          {/* Location + Confidence */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-4 rounded-xl" style={{ background: C.bg }}>
               <p className="text-xs font-semibold mb-2" style={{ color: C.textMuted }}>Location</p>
@@ -404,7 +350,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
             </div>
           </div>
 
-          {/* Reporter + Date */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-4 rounded-xl" style={{ background: C.bg }}>
               <p className="text-xs font-semibold mb-1.5" style={{ color: C.textMuted }}>
@@ -440,7 +385,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
             </div>
           </div>
 
-          {/* Evidence image */}
           {img && (
             <div>
               <p className="text-xs font-semibold mb-2 flex items-center gap-1.5"
@@ -452,7 +396,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
             </div>
           )}
 
-          {/* Verified by */}
           {report.verifiedBy && (
             <div className="p-3 rounded-xl border flex items-center gap-2"
               style={{ borderColor: T.primary + '40', background: T.primary + '0C' }}>
@@ -467,7 +410,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
           )}
         </div>
 
-        {/* Pending actions */}
         {isPending && (
           <div className="px-5 py-4 border-t flex gap-3" style={{ borderColor: C.borderSm }}>
             <button onClick={onVerify}
@@ -489,7 +431,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
   );
 }
 
-// ─── Broadcast Modal ──────────────────────────────────────────────────────────
 function BroadcastModal({ cluster, onClose, onBroadcast }:
   { cluster: Cluster; onClose: () => void; onBroadcast: (sev: string, msg: string) => Promise<void> }) {
 
@@ -525,7 +466,6 @@ function BroadcastModal({ cluster, onClose, onBroadcast }:
           This will notify all users in the affected area.
         </p>
 
-        {/* Severity */}
         <label className="block text-xs font-semibold mb-2" style={{ color: C.textSub }}>
           Severity Level
         </label>
@@ -541,7 +481,6 @@ function BroadcastModal({ cluster, onClose, onBroadcast }:
           ))}
         </div>
 
-        {/* Message */}
         <label className="block text-xs font-semibold mb-2" style={{ color: C.textSub }}>
           Alert Message
         </label>
@@ -574,7 +513,6 @@ function BroadcastModal({ cluster, onClose, onBroadcast }:
 
 type TabKey = 'overview' | 'reports' | 'clusters' | 'alerts';
 
-// ─── Overview Tab ─────────────────────────────────────────────────────────────
 function OverviewTab({ data, onTabSwitch }:
   { data: Overview | null; onTabSwitch: (t: TabKey) => void }) {
 
@@ -589,8 +527,6 @@ function OverviewTab({ data, onTabSwitch }:
 
   return (
     <div className="space-y-5">
-
-      {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Reports"   value={data.totalReports ?? 0}
           sub={data.weeklyChange ? `+${data.weeklyChange}% vs last week` : 'All time'}
@@ -603,9 +539,7 @@ function OverviewTab({ data, onTabSwitch }:
           sub="AlertBroadcast total" icon={Bell} accent="#DC2626" />
       </div>
 
-      {/* Weekly chart + by-category */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
         <div className="lg:col-span-2 bg-white rounded-2xl border p-5"
           style={{ borderColor: C.border }}>
           <p className="font-semibold text-sm mb-4" style={{ color: C.text }}>
@@ -667,7 +601,6 @@ function OverviewTab({ data, onTabSwitch }:
         </div>
       </div>
 
-      {/* Status distribution */}
       <div className="bg-white rounded-2xl border p-5" style={{ borderColor: C.border }}>
         <p className="font-semibold text-sm mb-4" style={{ color: C.text }}>
           Status Distribution
@@ -698,13 +631,11 @@ function OverviewTab({ data, onTabSwitch }:
         </div>
       </div>
 
-      {/* Recent pending */}
       <RecentPendingCard onViewAll={() => onTabSwitch('reports')} />
     </div>
   );
 }
 
-// ─── Recent Pending Card ──────────────────────────────────────────────────────
 function RecentPendingCard({ onViewAll }: { onViewAll: () => void }) {
   const [items,   setItems]   = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -720,7 +651,7 @@ function RecentPendingCard({ onViewAll }: { onViewAll: () => void }) {
 
   const act = async (id: string, action: 'verify' | 'reject') => {
     try {
-      await apiFetch(`/reports/${id}/${action}/`, { method: 'POST' });
+      await apiFetch(`/reports/${id}/${action}`, { method: 'POST' });
       setItems(p => p.filter(r => r.id !== id));
     } catch { /* silent */ }
   };
@@ -787,7 +718,6 @@ function RecentPendingCard({ onViewAll }: { onViewAll: () => void }) {
   );
 }
 
-// ─── Reports Tab ──────────────────────────────────────────────────────────────
 function ReportsTab({ toast }: { toast: ToastFn }) {
   const [reports,      setReports]      = useState<Report[]>([]);
   const [total,        setTotal]        = useState(0);
@@ -815,7 +745,6 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
       setReports(raw.map(normReport));
       setTotal(data.count ?? data.total ?? raw.length);
 
-      // status counts may come in the envelope
       const sc = data.status_counts ?? data.statusCounts;
       if (sc) {
         setStatusCounts({
@@ -831,20 +760,18 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
 
   useEffect(() => { load(); }, [load]);
 
-  // POST /reports/{id}/verify/   or   /reports/{id}/reject/
   const act = async (id: string, action: 'verify' | 'reject') => {
     try {
-      await apiFetch(`/reports/${id}/${action}/`, { method: 'POST' });
+      await apiFetch(`/reports/${id}/${action}`, { method: 'POST' });
       toast(action === 'verify' ? 'Report verified.' : 'Report rejected.', 'success');
       load();
       if (viewing?.id === id) setViewing(null);
     } catch (e: any) { toast(parseErr(e), 'error'); }
   };
 
-  // DELETE /reports/{id}/
   const del = async (id: string) => {
     try {
-      await apiFetch(`/reports/${id}/`, { method: 'DELETE' });
+      await apiFetch(`/reports/${id}`, { method: 'DELETE' });
       toast('Report deleted.', 'success');
       load();
     } catch (e: any) { toast(parseErr(e), 'error'); }
@@ -861,7 +788,6 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
 
   return (
     <>
-      {/* Search + category */}
       <div className="flex gap-3 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
@@ -890,7 +816,6 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
         </div>
       </div>
 
-      {/* Status pills */}
       <div className="flex flex-wrap gap-2 mb-4">
         {statusTabs.map(t => (
           <button key={t.key} onClick={() => { setStatus(t.key); setPage(1); }}
@@ -910,7 +835,6 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
         </p>
       )}
 
-      {/* Table */}
       <div className="bg-white rounded-2xl border overflow-hidden shadow-sm"
         style={{ borderColor: C.border }}>
         {loading ? <Spinner /> : err ? <ErrMsg msg={err} onRetry={load} /> :
@@ -1025,7 +949,6 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
   );
 }
 
-// ─── Clusters Tab ─────────────────────────────────────────────────────────────
 function ClustersTab({ toast }: { toast: ToastFn }) {
   const [clusters,  setClusters]  = useState<Cluster[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -1035,8 +958,7 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
   const load = useCallback(async () => {
     setLoading(true); setErr('');
     try {
-      // GET /reports/clusters/
-      const d = await apiFetch('/reports/clusters/');
+      const d = await apiFetch('/reports/clusters');
       setClusters((d.results ?? d.data ?? d ?? []).map(normCluster));
     } catch (e: any) { setErr(parseErr(e)); }
     finally { setLoading(false); }
@@ -1044,12 +966,9 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
 
   useEffect(() => { load(); }, [load]);
 
-  // POST /reports/clusters/{id}/broadcast/
-  // Django creates AlertBroadcast(cluster=cluster_obj, trigger_type='MANUAL', severity, message)
-  // Django creates AlertBroadcast(cluster=cluster_obj, trigger_type='MANUAL', severity, message)
   const doBroadcast = async (cluster: Cluster, severity: string, msg: string) => {
     try {
-      await apiFetch(`/reports/clusters/${cluster.id}/broadcast/`, {
+      await apiFetch(`/reports/clusters/${cluster.id}/broadcast`, {
         method: 'POST',
         body: JSON.stringify({ severity, message: msg }),
       });
@@ -1124,7 +1043,6 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
                 </span>
               </div>
 
-              {/* top_keywords from TF-IDF */}
               {keys.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {keys.map(k => (
@@ -1150,7 +1068,6 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
                       style={{ width: `${pct}%`, background: confCol }} />
                   </div>
                 </div>
-                {/* Only show broadcast if not yet alerted */}
                 {!alerted && (
                   <button onClick={() => setBroadcast(cl)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white
@@ -1182,15 +1099,13 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
   );
 }
 
-// ─── Alerts Tab ───────────────────────────────────────────────────────────────
 function AlertsTab() {
   const [alerts,  setAlerts]  = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [err,     setErr]     = useState('');
 
   useEffect(() => {
-    // GET /reports/alerts/  →  AlertBroadcast list
-    apiFetch('/reports/alerts/')
+    apiFetch('/reports/alerts')
       .then(d => setAlerts((d.results ?? d.data ?? []).map(normAlert)))
       .catch(e => setErr(parseErr(e)))
       .finally(() => setLoading(false));
@@ -1275,17 +1190,15 @@ function AlertsTab() {
   );
 }
 
-// ─── Main Export ──────────────────────────────────────────────────────────────
 export function ReportsPage({ toast }: { toast: ToastFn }) {
   const [tab,      setTab]      = useState<'overview' | 'reports' | 'clusters' | 'alerts'>('overview');
   const [overview, setOverview] = useState<Overview | null>(null);
   const [counts,   setCounts]   = useState({ reports: 0, clusters: 0, alerts: 0 });
   const [live,     setLive]     = useState(true);
 
-  // GET /reports/overview/
   const loadMeta = useCallback(async () => {
     try {
-      const d  = await apiFetch('/reports/overview/');
+      const d  = await apiFetch('/reports/overview');
       const ov = normOverview(d);
       setOverview(ov);
       setCounts({
@@ -1298,7 +1211,6 @@ export function ReportsPage({ toast }: { toast: ToastFn }) {
 
   useEffect(() => { loadMeta(); }, [loadMeta]);
 
-  // Live polling every 30 s
   useEffect(() => {
     if (!live) return;
     const iv = setInterval(loadMeta, 30_000);
@@ -1316,7 +1228,6 @@ export function ReportsPage({ toast }: { toast: ToastFn }) {
     <div className="min-h-screen" style={{ background: C.bg }}>
       <div className="max-w-7xl mx-auto px-4 py-6">
 
-        {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold" style={{ color: C.text }}>
@@ -1338,7 +1249,6 @@ export function ReportsPage({ toast }: { toast: ToastFn }) {
           </button>
         </div>
 
-        {/* Tab bar */}
         <div className="flex gap-1 p-1 rounded-2xl border mb-6 bg-white w-fit"
           style={{ borderColor: C.border }}>
           {tabs.map(t => {
@@ -1358,7 +1268,6 @@ export function ReportsPage({ toast }: { toast: ToastFn }) {
           })}
         </div>
 
-        {/* Content */}
         {tab === 'overview'  && <OverviewTab data={overview} onTabSwitch={setTab} />}
         {tab === 'reports'   && <ReportsTab  toast={toast} />}
         {tab === 'clusters'  && <ClustersTab toast={toast} />}
