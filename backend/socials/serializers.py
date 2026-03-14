@@ -7,6 +7,8 @@ class CommentSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     userPhoto = serializers.SerializerMethodField()
     postId = serializers.UUIDField(source="post.id", read_only=True)
+    likeCount = serializers.SerializerMethodField()
+    isLiked = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
@@ -17,9 +19,19 @@ class CommentSerializer(serializers.ModelSerializer):
             "userPhoto",
             "textContent",
             "image",
+            "likeCount",
+            "isLiked",
             "createdAt",
         ]
-        read_only_fields = ["id", "postId", "full_name", "userPhoto", "createdAt"]
+        read_only_fields = [
+            "id",
+            "postId",
+            "full_name",
+            "userPhoto",
+            "likeCount",
+            "isLiked",
+            "createdAt",
+        ]
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_full_name(self, obj):
@@ -43,6 +55,17 @@ class CommentSerializer(serializers.ModelSerializer):
             return obj.user.profile_image
         return None
 
+    @extend_schema_field(serializers.IntegerField())
+    def get_likeCount(self, obj):
+        return obj.likedBy.count()
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_isLiked(self, obj):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return obj.likedBy.filter(pk=request.user.pk).exists()
+        return False
+
 
 class PostSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
@@ -52,6 +75,7 @@ class PostSerializer(serializers.ModelSerializer):
     likeCount = serializers.SerializerMethodField()
     shareCount = serializers.SerializerMethodField()
     isBookmarked = serializers.SerializerMethodField()
+    isLiked = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -65,6 +89,7 @@ class PostSerializer(serializers.ModelSerializer):
             "likeCount",
             "shareCount",
             "isBookmarked",
+            "isLiked",
             "createdAt",
         ]
         read_only_fields = [
@@ -75,6 +100,7 @@ class PostSerializer(serializers.ModelSerializer):
             "likeCount",
             "shareCount",
             "isBookmarked",
+            "isLiked",
             "createdAt",
         ]
 
@@ -106,7 +132,7 @@ class PostSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.IntegerField())
     def get_likeCount(self, obj):
-        return obj.bookmarkedBy.count()
+        return obj.likedBy.count()
 
     @extend_schema_field(serializers.IntegerField())
     def get_shareCount(self, obj):
@@ -117,6 +143,13 @@ class PostSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             return obj.bookmarkedBy.filter(user=request.user).exists()
+        return False
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_isLiked(self, obj):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return obj.likedBy.filter(pk=request.user.pk).exists()
         return False
 
     def create(self, validated_data):
