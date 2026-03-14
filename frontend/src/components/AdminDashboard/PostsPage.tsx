@@ -213,13 +213,12 @@ function PostFormModal({ post, onClose, onSaved }: {
     setSaving(true); setErr('');
     try {
       if (post) {
-        // ── EDIT: use JSON PATCH (image editing kept simple) ──────────────
         await apiFetch(`/socials/posts/${post.id}`, {
           method: 'PATCH',
           body: JSON.stringify({ textContent: content }),
         });
       } else {
-        // ── ADD: multipart if image selected, JSON otherwise ─────────────
+       
         if (imageFile) {
           const token = localStorage.getItem('access_token') || localStorage.getItem('token');
           const fd = new FormData();
