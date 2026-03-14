@@ -13,6 +13,7 @@ from reports.views import (
     NotificationListView,
     NotificationDetailView,
     MarkAllNotificationsReadView,
+    AlertSendToAllView,
 )
 
 urlpatterns = [
@@ -33,4 +34,5 @@ urlpatterns = [
     path("notifications", NotificationListView.as_view(), name="notification-list"),
     path("notifications/read-all", MarkAllNotificationsReadView.as_view(), name="notification-read-all"),
     path("notifications/<uuid:pk>", NotificationDetailView.as_view(), name="notification-detail"),
+     path("alerts/<uuid:pk>/send-to-all", AlertSendToAllView.as_view(), name="alert-send-to-all"),
 ]

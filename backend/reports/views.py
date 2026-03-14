@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
@@ -23,10 +23,6 @@ from reports.serializers import (
 )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# REPORTS  →  GET /reports  |  POST /reports
-# ─────────────────────────────────────────────────────────────────────────────
-
 
 class ReportListCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser]
@@ -35,8 +31,6 @@ class ReportListCreateView(APIView):
         if self.request.method == "POST":
             return [permissions.IsAuthenticated()]
         return [IsAdminUser()]
-
-    # GET /reports  — admin list with filters + status_counts
     def get(self, request):
         qs = IncidentReport.objects.select_related("user").order_by("-createdAt")
 
@@ -67,7 +61,7 @@ class ReportListCreateView(APIView):
         )
         return Response({"results": serializer.data, "status_counts": counts})
 
-    # POST /reports  — any authenticated user submits a report
+   
     def post(self, request):
         serializer = IncidentReportCreateSerializer(
             data=request.data, context={"request": request}
@@ -78,11 +72,6 @@ class ReportListCreateView(APIView):
             serializer.instance, context={"request": request}
         )
         return Response(read.data, status=status.HTTP_201_CREATED)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# REPORTS  →  GET /reports/<pk>  |  PATCH /reports/<pk>  |  DELETE /reports/<pk>
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class ReportDetailView(APIView):
@@ -98,8 +87,7 @@ class ReportDetailView(APIView):
             return IncidentReport.objects.select_related("user").get(pk=pk)
         except IncidentReport.DoesNotExist:
             return None
-
-    # GET /reports/<pk>
+        
     def get(self, request, pk):
         report = self.get_object(pk)
         if not report:
@@ -110,7 +98,6 @@ class ReportDetailView(APIView):
             IncidentReportReadSerializer(report, context={"request": request}).data
         )
 
-    # PATCH /reports/<pk>  — admin sets status / rejectionReason
     def patch(self, request, pk):
         report = self.get_object(pk)
         if not report:
@@ -159,7 +146,7 @@ class ReportDetailView(APIView):
             IncidentReportReadSerializer(report, context={"request": request}).data
         )
 
-    # DELETE /reports/<pk>
+   
     def delete(self, request, pk):
         report = self.get_object(pk)
         if not report:
@@ -168,13 +155,7 @@ class ReportDetailView(APIView):
             )
         report.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# REPORTS  →  POST /reports/<pk>/verify  |  POST /reports/<pk>/reject
-# ─────────────────────────────────────────────────────────────────────────────
-
-
+    
 class ReportVerifyView(APIView):
     permission_classes = [IsAdminUser]
 
@@ -231,11 +212,6 @@ class ReportRejectView(APIView):
         return Response(
             IncidentReportReadSerializer(report, context={"request": request}).data
         )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# OVERVIEW  →  GET /reports/overview
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class ReportsOverviewView(APIView):
@@ -295,11 +271,6 @@ class ReportsOverviewView(APIView):
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CLUSTERS  →  GET /clusters  |  GET /clusters/<pk>  |  DELETE /clusters/<pk>
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class ClusterListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -336,7 +307,6 @@ class ClusterDetailView(APIView):
         except IncidentCluster.DoesNotExist:
             return None
 
-    # GET /clusters/<pk>
     def get(self, request, pk):
         cluster = self.get_object(pk)
         if not cluster:
@@ -347,7 +317,7 @@ class ClusterDetailView(APIView):
             IncidentClusterDetailSerializer(cluster, context={"request": request}).data
         )
 
-    # DELETE /clusters/<pk>
+
     def delete(self, request, pk):
         cluster = self.get_object(pk)
         if not cluster:
@@ -356,11 +326,6 @@ class ClusterDetailView(APIView):
             )
         cluster.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CLUSTERS  →  POST /clusters/<pk>/broadcast
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class ClusterBroadcastView(APIView):
@@ -416,11 +381,6 @@ class ClusterBroadcastView(APIView):
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ALERTS  →  GET /alerts  |  GET /alerts/<pk>  |  DELETE /alerts/<pk>
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 class AlertListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -457,7 +417,6 @@ class AlertDetailView(APIView):
         except AlertBroadcast.DoesNotExist:
             return None
 
-    # GET /alerts/<pk>
     def get(self, request, pk):
         alert = self.get_object(pk)
         if not alert:
@@ -468,7 +427,6 @@ class AlertDetailView(APIView):
             AlertBroadcastSerializer(alert, context={"request": request}).data
         )
 
-    # DELETE /alerts/<pk>
     def delete(self, request, pk):
         alert = self.get_object(pk)
         if not alert:
@@ -477,11 +435,6 @@ class AlertDetailView(APIView):
             )
         alert.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# NOTIFICATIONS  →  GET /notifications  |  PATCH /notifications/<pk>  |  POST /notifications/read-all
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class NotificationListView(APIView):
@@ -505,7 +458,6 @@ class NotificationDetailView(APIView):
         except Notification.DoesNotExist:
             return None
 
-    # GET /notifications/<pk>
     def get(self, request, pk):
         notif = self.get_object(pk, request.user)
         if not notif:
@@ -516,7 +468,7 @@ class NotificationDetailView(APIView):
             NotificationSerializer(notif, context={"request": request}).data
         )
 
-    # PATCH /notifications/<pk>  — mark single notification as read
+
     def patch(self, request, pk):
         notif = self.get_object(pk, request.user)
         if not notif:
@@ -529,7 +481,6 @@ class NotificationDetailView(APIView):
             NotificationSerializer(notif, context={"request": request}).data
         )
 
-    # DELETE /notifications/<pk>
     def delete(self, request, pk):
         notif = self.get_object(pk, request.user)
         if not notif:
@@ -548,3 +499,51 @@ class MarkAllNotificationsReadView(APIView):
             recipient=request.user, isRead=False
         ).update(isRead=True)
         return Response({"marked_read": updated})
+
+class AlertSendToAllView(APIView):
+    """
+    POST /api/v1/reports/alerts/<uuid:pk>/send-to-all
+
+    Sends the alert as a Notification to every user in the system.
+    Uses get_or_create so repeated calls won't duplicate notifications.
+    """
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            alert = AlertBroadcast.objects.select_related(
+                "cluster", "broadcastedBy"
+            ).get(pk=pk)
+        except AlertBroadcast.DoesNotExist:
+            return Response(
+                {"detail": "Alert not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        cluster  = alert.cluster
+        category = (cluster.dominantCategory or "Incident").replace("_", " ").title()
+        title    = f"{alert.severity} Alert: {category}"
+        message  = alert.message
+
+        from accounts.models import User as UserModel
+        users = UserModel.objects.all()
+
+        created_count = 0
+        for user in users:
+            _, created = Notification.objects.get_or_create(
+                recipient=user,
+                notificationType="ALERT_BROADCAST",
+                title=title,
+                message=message,
+                defaults={"isRead": False},
+            )
+            if created:
+                created_count += 1
+
+        return Response(
+            {
+                "detail": f"Alert sent to {created_count} user(s).",
+                "total_users": users.count(),
+                "new_notifications": created_count,
+            },
+            status=status.HTTP_200_OK,
+        )
