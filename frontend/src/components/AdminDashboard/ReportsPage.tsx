@@ -3,16 +3,17 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   RefreshCw, Search, Eye, Trash2, Check, X, MapPin, Clock,
   AlertTriangle, Radio, Bell, BarChart2, FileText, ChevronDown,
-  Loader2, Shield, User, Activity, Filter,
+  Loader2, Shield, User, Activity, Filter, Send,
 } from 'lucide-react';
 import { T, apiFetch, parseErr } from './utils';
 import { Spinner, ErrMsg, Empty, Confirm, Pagination } from './ui';
+import { useSocialStore } from '@/store/socialStore';
 import type { ToastFn } from './types';
 
 const C = {
-  text:      T.textMain,
-  textSub:   T.textSub,
-  textMuted: T.textMuted,
+  text:      '#111111',   // primary — near black
+  textSub:   '#374151',   // secondary — dark gray
+  textMuted: '#6B7280',   // muted — medium gray
   border:    T.border,
   borderSm:  T.borderSm,
   bg:        '#F7F9FC',
@@ -20,14 +21,14 @@ const C = {
   pill:      '#F1F5F9',
 };
 
-const CATEGORIES: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
-  ROAD_BLOCK: { label: 'Road Block', color: '#B45309', bg: '#FEF3C7', emoji: '🚧' },
-  WEATHER:    { label: 'Weather',    color: '#0369A1', bg: '#E0F2FE', emoji: '🌦️' },
-  MEDICAL:    { label: 'Medical',    color: '#BE185D', bg: '#FCE7F3', emoji: '🏥' },
-  FLOOD:      { label: 'Flood',      color: '#0E7490', bg: '#CFFAFE', emoji: '🌊' },
-  LANDSLIDE:  { label: 'Landslide',  color: '#7C3AED', bg: '#EDE9FE', emoji: '⛰️' },
-  WILDLIFE:   { label: 'Wildlife',   color: '#166534', bg: '#DCFCE7', emoji: '🐾' },
-  OTHER:      { label: 'Other',      color: '#475569', bg: '#F1F5F9', emoji: '📋' },
+const CATEGORIES: Record<string, { label: string; color: string; bg: string }> = {
+  ROAD_BLOCK: { label: 'Road Block', color: '#B45309', bg: '#FEF3C7' },
+  WEATHER:    { label: 'Weather',    color: '#0369A1', bg: '#E0F2FE' },
+  MEDICAL:    { label: 'Medical',    color: '#BE185D', bg: '#FCE7F3' },
+  FLOOD:      { label: 'Flood',      color: '#0E7490', bg: '#CFFAFE' },
+  LANDSLIDE:  { label: 'Landslide',  color: '#7C3AED', bg: '#EDE9FE' },
+  WILDLIFE:   { label: 'Wildlife',   color: '#166534', bg: '#DCFCE7' },
+  OTHER:      { label: 'Other',      color: '#475569', bg: '#F1F5F9' },
 };
 
 function catCfg(cat?: string) {
@@ -55,19 +56,29 @@ const SEV_CFG: Record<string, { color: string; bg: string }> = {
 };
 
 interface Report {
-  id:             string;
-  category?:      string;
-  description?:   string;
-  location?:      string | { name?: string; lat?: number; lng?: number };
-  latitude?:      number;
-  longitude?:     number;
-  reporter?:      { fullName?: string; full_name?: string; name?: string; email?: string };
-  reporterName?:  string;
-  status?:        string;
+  id:              string;
+  category?:       string;
+  description?:    string;
+  location?:       string | { name?: string; lat?: number; lng?: number };
+  latitude?:       number;
+  longitude?:      number;
+  reporter?:       { fullName?: string; full_name?: string; name?: string; email?: string };
+  reporterName?:   string;
+  status?:         string;
   confidenceScore?: number;
-  image?:         string | null;
-  verifiedBy?:    string;
-  createdAt?:     string;
+  image?:          string | null;
+  verifiedBy?:     string;
+  createdAt?:      string;
+}
+
+interface ClusterReport {
+  id:              string;
+  category?:       string;
+  description?:    string;
+  reporter?:       string | { fullName?: string; full_name?: string; name?: string };
+  status?:         string;
+  confidenceScore?: number;
+  createdAt?:      string;
 }
 
 interface Cluster {
@@ -81,50 +92,70 @@ interface Cluster {
   reportCount?:      number;
   detectedAt?:       string;
   createdAt?:        string;
+  reports?:          ClusterReport[];
 }
 
 interface AlertItem {
-  id:          string;
-  severity?:   string;
+  id:           string;
+  severity?:    string;
   triggerType?: string;
-  message?:    string;
-  cluster?:    { dominantCategory?: string; centerLatitude?: number; centerLongitude?: number };
-  sentBy?:     string;
-  createdAt?:  string;
+  message?:     string;
+  cluster?:     { dominantCategory?: string; centerLatitude?: number; centerLongitude?: number };
+  sentBy?:      string;
+  createdAt?:   string;
 }
 
 interface Overview {
-  totalReports?:    number;
-  pendingCount?:    number;
-  verifiedCount?:   number;
-  rejectedCount?:   number;
+  totalReports?:     number;
+  pendingCount?:     number;
+  verifiedCount?:    number;
+  rejectedCount?:    number;
   autoAlertedCount?: number;
-  activeClusters?:  number;
-  alertsSent?:      number;
-  weeklyData?:      { day: string; count: number }[];
-  byCategory?:      { category: string; count: number }[];
-  weeklyChange?:    number;
+  activeClusters?:   number;
+  alertsSent?:       number;
+  weeklyData?:       { day: string; count: number }[];
+  byCategory?:       { category: string; count: number }[];
+  weeklyChange?:     number;
 }
+
+// ─── Normalizers ─────────────────────────────────────────────────────────────
 
 function normReport(r: any): Report {
   return {
-    id:             r.id,
-    category:       r.category,
-    description:    r.description,
-    location:       r.location,
-    latitude:       r.latitude,
-    longitude:      r.longitude,
-    reporter:       r.user ?? r.reporter,
-    reporterName:   r.reporter_name ?? r.reporterName,
-    status:         r.status,
+    id:              r.id,
+    category:        r.category,
+    description:     r.description,
+    location:        r.location,
+    latitude:        r.latitude,
+    longitude:       r.longitude,
+    reporter:        r.user ?? r.reporter,
+    reporterName:    r.reporter_name ?? r.reporterName,
+    status:          r.status,
     confidenceScore: parseFloat(r.confidence_score ?? r.confidenceScore ?? '0'),
-    image:          r.image ?? r.evidence ?? null,
-    verifiedBy:     r.verified_by ?? r.verifiedBy,
-    createdAt:      r.created_at ?? r.createdAt,
+    image:           r.image ?? r.evidence ?? null,
+    verifiedBy:      r.verified_by ?? r.verifiedBy,
+    createdAt:       r.created_at ?? r.createdAt,
+  };
+}
+
+function normClusterReport(r: any): ClusterReport {
+  const rep  = r.user ?? r.reporter;
+  const name = typeof rep === 'string'
+    ? rep
+    : rep?.fullName ?? rep?.full_name ?? rep?.name ?? r.reporter_name ?? r.reporterName;
+  return {
+    id:              r.id,
+    category:        r.category,
+    description:     r.description,
+    reporter:        name,
+    status:          r.status,
+    confidenceScore: parseFloat(r.confidence_score ?? r.confidenceScore ?? '0'),
+    createdAt:       r.created_at ?? r.createdAt,
   };
 }
 
 function normCluster(c: any): Cluster {
+  const rawReports = c.reports ?? c.report_list ?? [];
   return {
     id:               c.id,
     dominantCategory: c.dominant_category  ?? c.dominantCategory,
@@ -136,6 +167,7 @@ function normCluster(c: any): Cluster {
     reportCount:      c.report_count        ?? c.reportCount        ?? c.reports_count ?? 0,
     detectedAt:       c.detected_at         ?? c.detectedAt,
     createdAt:        c.created_at          ?? c.createdAt,
+    reports:          Array.isArray(rawReports) ? rawReports.map(normClusterReport) : [],
   };
 }
 
@@ -151,8 +183,8 @@ function normAlert(a: any): AlertItem {
       centerLatitude:   parseFloat(cl.center_latitude  ?? cl.centerLatitude  ?? 0),
       centerLongitude:  parseFloat(cl.center_longitude ?? cl.centerLongitude ?? 0),
     } : undefined,
-    sentBy:      a.sent_by   ?? a.sentBy,
-    createdAt:   a.created_at ?? a.createdAt,
+    sentBy:    a.sent_by    ?? a.sentBy,
+    createdAt: a.created_at ?? a.createdAt,
   };
 }
 
@@ -172,6 +204,8 @@ function normOverview(raw: any): Overview {
   };
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 function timeAgo(iso?: string): string {
   if (!iso) return '—';
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -179,13 +213,14 @@ function timeAgo(iso?: string): string {
   if (s < 3600)  return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   const d = Math.floor(s / 86400);
-  if (d < 30)    return `${d}d ago`;
-  return `${Math.floor(d / 30)}mo ago`;
+  return d < 30 ? `${d}d ago` : `${Math.floor(d / 30)}mo ago`;
 }
 
 function locName(r: Report): string {
   if (!r.location) {
-    return r.latitude ? `${Number(r.latitude).toFixed(4)}, ${Number(r.longitude).toFixed(4)}` : '—';
+    return r.latitude
+      ? `${Number(r.latitude).toFixed(4)}, ${Number(r.longitude).toFixed(4)}`
+      : '—';
   }
   if (typeof r.location === 'string') return r.location;
   return r.location.name ?? `${r.location.lat ?? 0}, ${r.location.lng ?? 0}`;
@@ -209,12 +244,18 @@ function shortId(id: string): string {
   return `rpt-${id.replace(/-/g, '').slice(-4).toUpperCase()}`;
 }
 
+function shortClsId(id: string): string {
+  return `cls-${id.replace(/-/g, '').slice(-3).toUpperCase()}`;
+}
+
+// ─── Shared UI atoms ─────────────────────────────────────────────────────────
+
 function CatPill({ cat }: { cat?: string }) {
   const c = catCfg(cat);
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap"
+    <span
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap"
       style={{ color: c.color, background: c.bg }}>
-      <span>{c.emoji}</span>
       {c.label.toUpperCase()}
     </span>
   );
@@ -223,7 +264,8 @@ function CatPill({ cat }: { cat?: string }) {
 function StatusBadge({ status }: { status?: string }) {
   const s = stCfg(status);
   return (
-    <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap"
+    <span
+      className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap"
       style={{ color: s.color, background: s.bg }}>
       {s.label.toUpperCase()}
     </span>
@@ -260,10 +302,204 @@ function StatCard({ label, value, sub, accent, icon: Icon }:
   );
 }
 
+// ─── Cluster Details Modal ────────────────────────────────────────────────────
+
+function ClusterDetailsModal({ cluster, onClose, onBroadcast }:
+  { cluster: Cluster; onClose: () => void; onBroadcast: () => void }) {
+
+  const [detail,  setDetail]  = useState<Cluster>(cluster);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    apiFetch(`/reports/clusters/${cluster.id}`)
+      .then(d => setDetail(normCluster(d)))
+      .catch(() => {/* use passed cluster data */})
+      .finally(() => setLoading(false));
+  }, [cluster.id]);
+
+  const pct     = confPct(detail.confidenceScore);
+  const confCol = pct >= 75 ? '#22C55E' : pct >= 50 ? '#F59E0B' : '#EF4444';
+  const date    = detail.detectedAt ?? detail.createdAt;
+  const keys    = detail.topKeywords ?? [];
+  const reports = detail.reports ?? [];
+  const count   = detail.reportCount ?? reports.length;
+  const alerted = detail.isAlertTriggered;
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      onClick={onClose}>
+      <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        className="bg-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden"
+        style={{ maxHeight: '90vh' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b"
+          style={{ borderColor: C.borderSm }}>
+          <Radio className="w-4 h-4 flex-shrink-0" style={{ color: T.primary }} />
+          <h2 className="font-bold text-base flex-1" style={{ color: C.text }}>
+            Cluster #{shortClsId(detail.id).replace('cls-', '')} Details
+          </h2>
+          <button onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
+            <X className="w-4 h-4" style={{ color: C.textMuted }} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 py-4 space-y-4"
+          style={{ maxHeight: 'calc(90vh - 130px)' }}>
+
+          {/* Status + category row */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                style={alerted
+                  ? { background: '#FEE2E2', color: '#DC2626' }
+                  : { background: '#FEF3C7', color: '#D97706' }}>
+                {alerted ? 'ALERTED' : 'REVIEW NEEDED'}
+              </span>
+              <CatPill cat={detail.dominantCategory} />
+            </div>
+            <span className="text-xs font-mono px-2 py-1 rounded-lg"
+              style={{ background: C.pill, color: C.textMuted }}>
+              {shortClsId(detail.id)}
+            </span>
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Reports',  value: String(count) },
+              { label: 'Confidence', value: `${pct}%`, color: confCol },
+              {
+                label: 'Center Location',
+                value: detail.centerLatitude != null
+                  ? `${Number(detail.centerLatitude).toFixed(4)}\n${Number(detail.centerLongitude).toFixed(4)}`
+                  : '—',
+              },
+              {
+                label: 'Detected',
+                value: date
+                  ? new Date(date).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                    })
+                  : '—',
+                sub: date ? timeAgo(date) : undefined,
+              },
+            ].map(({ label, value, color, sub }) => (
+              <div key={label} className="p-3 rounded-xl" style={{ background: C.bg }}>
+                <p className="text-[11px] font-semibold mb-1" style={{ color: C.textMuted }}>{label}</p>
+                <p className="text-sm font-bold whitespace-pre-line leading-snug"
+                  style={{ color: color ?? C.text }}>{value}</p>
+                {sub && <p className="text-[11px] mt-0.5" style={{ color: C.textMuted }}>{sub}</p>}
+              </div>
+            ))}
+          </div>
+
+          {/* Confidence bar */}
+          <div className="p-3 rounded-xl" style={{ background: C.bg }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold" style={{ color: C.textMuted }}>
+                Confidence Score (DBSCAN + TF-IDF)
+              </span>
+              <span className="text-xs font-bold" style={{ color: confCol }}>{pct}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+              <div className="h-full rounded-full transition-all"
+                style={{ width: `${pct}%`, background: confCol }} />
+            </div>
+          </div>
+
+          {/* Top keywords */}
+          {keys.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold mb-2" style={{ color: C.textMuted }}>
+                Top Keywords (TF-IDF)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {keys.map(k => (
+                  <span key={k} className="text-[11px] px-2.5 py-1 rounded-full font-medium"
+                    style={{ background: T.primary + '12', color: T.primary }}>
+                    {k}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reports list */}
+          <div>
+            <p className="text-xs font-semibold mb-2" style={{ color: C.textMuted }}>
+              Reports in this Cluster
+            </p>
+            {loading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin" style={{ color: T.primary }} />
+              </div>
+            ) : reports.length === 0 ? (
+              <p className="text-sm text-center py-4" style={{ color: C.textMuted }}>
+                No report details available
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {reports.map(r => {
+                  const pctR     = confPct(r.confidenceScore);
+                  const confColR = pctR >= 75 ? '#22C55E' : pctR >= 50 ? '#F59E0B' : '#EF4444';
+                  const repName  = typeof r.reporter === 'string' ? r.reporter : '—';
+                  return (
+                    <div key={r.id}
+                      className="flex items-start gap-3 p-3 rounded-xl border"
+                      style={{ borderColor: C.borderSm, background: '#FAFBFC' }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm line-clamp-2 mb-1" style={{ color: C.textSub }}>
+                          {r.description ?? '—'}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px]" style={{ color: C.textMuted }}>
+                            {repName}
+                          </span>
+                          <StatusBadge status={r.status} />
+                          <span className="text-[11px]" style={{ color: C.textMuted }}>
+                            {timeAgo(r.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold flex-shrink-0 mt-0.5"
+                        style={{ color: confColR }}>
+                        {pctR}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        {!alerted && (
+          <div className="px-5 py-4 border-t" style={{ borderColor: C.borderSm }}>
+            <button onClick={onBroadcast}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl
+                text-white text-sm font-semibold"
+              style={{ background: '#DC2626' }}>
+              <Radio className="w-4 h-4" /> Broadcast Alert
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Report Detail Modal ──────────────────────────────────────────────────────
+
 function ReportDetailModal({ report, onClose, onVerify, onReject }:
   { report: Report; onClose: () => void; onVerify: () => void; onReject: () => void }) {
 
-  const cat       = catCfg(report.category);
   const pct       = confPct(report.confidenceScore);
   const confColor = pct >= 75 ? '#22C55E' : pct >= 50 ? '#F59E0B' : '#EF4444';
   const img       = report.image ?? null;
@@ -280,19 +516,14 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
         style={{ maxHeight: '90vh' }}
         onClick={e => e.stopPropagation()}>
 
-        <div className="flex items-center gap-3 px-5 py-4 border-b"
-          style={{ borderColor: C.borderSm }}>
-          <span className="text-xl">{cat.emoji}</span>
+        <div className="flex items-center gap-3 px-5 py-4 border-b" style={{ borderColor: C.borderSm }}>
           <h2 className="font-bold text-base flex-1" style={{ color: C.text }}>Report Detail</h2>
-          <button onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
             <X className="w-4 h-4" style={{ color: C.textMuted }} />
           </button>
         </div>
 
-        <div className="overflow-y-auto px-5 py-4 space-y-4"
-          style={{ maxHeight: 'calc(90vh - 130px)' }}>
-
+        <div className="overflow-y-auto px-5 py-4 space-y-4" style={{ maxHeight: 'calc(90vh - 130px)' }}>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge status={report.status} />
@@ -305,9 +536,7 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
           </div>
 
           <div className="p-4 rounded-xl" style={{ background: C.bg }}>
-            <p className="text-xs font-semibold mb-1.5" style={{ color: C.textMuted }}>
-              Description
-            </p>
+            <p className="text-xs font-semibold mb-1.5" style={{ color: C.textMuted }}>Description</p>
             <p className="text-sm leading-relaxed" style={{ color: C.textSub }}>
               {report.description ?? '—'}
             </p>
@@ -317,66 +546,46 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
             <div className="p-4 rounded-xl" style={{ background: C.bg }}>
               <p className="text-xs font-semibold mb-2" style={{ color: C.textMuted }}>Location</p>
               <div className="flex items-start gap-1.5">
-                <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0"
-                  style={{ color: T.primary }} />
+                <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: T.primary }} />
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: C.text }}>
-                    {locName(report)}
-                  </p>
+                  <p className="text-sm font-semibold" style={{ color: C.text }}>{locName(report)}</p>
                   {report.latitude && (
                     <p className="text-[11px] mt-0.5 font-mono" style={{ color: C.textMuted }}>
-                      {Number(report.latitude).toFixed(5)},&nbsp;
-                      {Number(report.longitude).toFixed(5)}
+                      {Number(report.latitude).toFixed(5)},&nbsp;{Number(report.longitude).toFixed(5)}
                     </p>
                   )}
                 </div>
               </div>
             </div>
-
             <div className="p-4 rounded-xl" style={{ background: C.bg }}>
-              <p className="text-xs font-semibold mb-2" style={{ color: C.textMuted }}>
-                Confidence Score
-              </p>
+              <p className="text-xs font-semibold mb-2" style={{ color: C.textMuted }}>Confidence Score</p>
               <div className="flex items-center gap-2 mb-1">
                 <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
-                  <div className="h-full rounded-full"
-                    style={{ width: `${pct}%`, background: confColor }} />
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: confColor }} />
                 </div>
                 <span className="text-sm font-bold" style={{ color: confColor }}>{pct}%</span>
               </div>
-              <p className="text-[10px]" style={{ color: C.textMuted }}>
-                DBSCAN geo + TF-IDF score
-              </p>
+              <p className="text-[10px]" style={{ color: C.textMuted }}>DBSCAN geo + TF-IDF score</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="p-4 rounded-xl" style={{ background: C.bg }}>
-              <p className="text-xs font-semibold mb-1.5" style={{ color: C.textMuted }}>
-                Reporter
-              </p>
+              <p className="text-xs font-semibold mb-1.5" style={{ color: C.textMuted }}>Reporter</p>
               <p className="text-sm font-bold" style={{ color: C.text }}>{rName(report)}</p>
               {rEmail(report) && (
-                <p className="text-[11px] mt-0.5" style={{ color: C.textMuted }}>
-                  {rEmail(report)}
-                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: C.textMuted }}>{rEmail(report)}</p>
               )}
             </div>
             <div className="p-4 rounded-xl" style={{ background: C.bg }}>
-              <p className="text-xs font-semibold mb-1.5" style={{ color: C.textMuted }}>
-                Reported On
-              </p>
+              <p className="text-xs font-semibold mb-1.5" style={{ color: C.textMuted }}>Reported On</p>
               {date ? (
                 <>
                   <p className="text-sm font-semibold" style={{ color: C.text }}>
-                    {date.toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric', year: 'numeric',
-                    })}
+                    {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
                   <p className="text-[11px] mt-0.5" style={{ color: C.textMuted }}>
-                    {date.toLocaleTimeString('en-US', {
-                      hour: '2-digit', minute: '2-digit',
-                    })}
+                    {date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </>
               ) : (
@@ -391,8 +600,7 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
                 style={{ color: C.textMuted }}>
                 <FileText className="w-3.5 h-3.5" /> Evidence
               </p>
-              <img src={img} alt="evidence"
-                className="w-full rounded-xl object-cover max-h-56" />
+              <img src={img} alt="evidence" className="w-full rounded-xl object-cover max-h-56" />
             </div>
           )}
 
@@ -401,9 +609,7 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
               style={{ borderColor: T.primary + '40', background: T.primary + '0C' }}>
               <Shield className="w-4 h-4 flex-shrink-0" style={{ color: T.primary }} />
               <div>
-                <p className="text-xs font-semibold" style={{ color: T.primary }}>
-                  Verified By
-                </p>
+                <p className="text-xs font-semibold" style={{ color: T.primary }}>Verified By</p>
                 <p className="text-xs" style={{ color: C.textSub }}>{report.verifiedBy}</p>
               </div>
             </div>
@@ -430,6 +636,8 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
     </motion.div>
   );
 }
+
+// ─── Broadcast Modal ──────────────────────────────────────────────────────────
 
 function BroadcastModal({ cluster, onClose, onBroadcast }:
   { cluster: Cluster; onClose: () => void; onBroadcast: (sev: string, msg: string) => Promise<void> }) {
@@ -459,9 +667,7 @@ function BroadcastModal({ cluster, onClose, onBroadcast }:
           <Shield className="w-6 h-6" style={{ color: '#DC2626' }} />
         </div>
 
-        <h2 className="text-lg font-bold mb-1" style={{ color: C.text }}>
-          Broadcast Alert
-        </h2>
+        <h2 className="text-lg font-bold mb-1" style={{ color: C.text }}>Broadcast Alert</h2>
         <p className="text-sm mb-5" style={{ color: C.textMuted }}>
           This will notify all users in the affected area.
         </p>
@@ -486,8 +692,7 @@ function BroadcastModal({ cluster, onClose, onBroadcast }:
         </label>
         <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4}
           placeholder="Describe the danger and recommended actions…"
-          className="w-full resize-none text-sm outline-none rounded-xl px-3 py-2.5
-            border focus:ring-2 mb-5"
+          className="w-full resize-none text-sm outline-none rounded-xl px-3 py-2.5 border focus:ring-2 mb-5"
           style={{ borderColor: C.border, background: C.bg }} />
 
         <div className="flex gap-3">
@@ -500,9 +705,7 @@ function BroadcastModal({ cluster, onClose, onBroadcast }:
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl
               text-white text-sm font-semibold disabled:opacity-60"
             style={{ background: '#DC2626' }}>
-            {loading
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <Radio   className="w-4 h-4" />}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
             Broadcast
           </button>
         </div>
@@ -511,17 +714,21 @@ function BroadcastModal({ cluster, onClose, onBroadcast }:
   );
 }
 
+// ─── Tab types ────────────────────────────────────────────────────────────────
+
 type TabKey = 'overview' | 'reports' | 'clusters' | 'alerts';
+
+// ─── Overview Tab ─────────────────────────────────────────────────────────────
 
 function OverviewTab({ data, onTabSwitch }:
   { data: Overview | null; onTabSwitch: (t: TabKey) => void }) {
 
   if (!data) return <Spinner />;
 
-  const weekly = data.weeklyData  ?? [];
-  const bycat  = data.byCategory  ?? [];
+  const weekly = data.weeklyData ?? [];
+  const bycat  = data.byCategory ?? [];
   const maxW   = Math.max(...weekly.map(d => d.count), 1);
-  const maxC   = Math.max(...bycat.map(d => d.count),  1);
+  const maxC   = Math.max(...bycat.map(d => d.count), 1);
   const total  = data.totalReports ?? 1;
   const pct    = (n: number) => Math.round(((n ?? 0) / total) * 100);
 
@@ -540,28 +747,17 @@ function OverviewTab({ data, onTabSwitch }:
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-white rounded-2xl border p-5"
-          style={{ borderColor: C.border }}>
-          <p className="font-semibold text-sm mb-4" style={{ color: C.text }}>
-            Reports This Week
-          </p>
+        <div className="lg:col-span-2 bg-white rounded-2xl border p-5" style={{ borderColor: C.border }}>
+          <p className="font-semibold text-sm mb-4" style={{ color: C.text }}>Reports This Week</p>
           {weekly.length === 0 ? (
-            <p className="text-center text-sm py-8" style={{ color: C.textMuted }}>
-              No data available
-            </p>
+            <p className="text-center text-sm py-8" style={{ color: C.textMuted }}>No data available</p>
           ) : (
             <div className="flex items-end gap-3 h-36">
               {weekly.map((d, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-xs font-semibold" style={{ color: C.textSub }}>
-                    {d.count}
-                  </span>
+                  <span className="text-xs font-semibold" style={{ color: C.textSub }}>{d.count}</span>
                   <div className="w-full rounded-t-lg"
-                    style={{
-                      height: `${Math.max((d.count / maxW) * 100, 6)}%`,
-                      background: T.primary,
-                      opacity: 0.85,
-                    }} />
+                    style={{ height: `${Math.max((d.count / maxW) * 100, 6)}%`, background: T.primary, opacity: 0.85 }} />
                   <span className="text-[11px]" style={{ color: C.textMuted }}>{d.day}</span>
                 </div>
               ))}
@@ -573,22 +769,16 @@ function OverviewTab({ data, onTabSwitch }:
           <p className="font-semibold text-sm mb-4" style={{ color: C.text }}>By Category</p>
           <div className="space-y-3">
             {bycat.length === 0 ? (
-              <p className="text-sm text-center py-4" style={{ color: C.textMuted }}>
-                No data
-              </p>
+              <p className="text-sm text-center py-4" style={{ color: C.textMuted }}>No data</p>
             ) : bycat.map((d, i) => {
               const cfg = catCfg(d.category);
               return (
                 <div key={i}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] font-semibold flex items-center gap-1"
-                      style={{ color: C.textSub }}>
-                      <span>{cfg.emoji}</span>
+                    <span className="text-[11px] font-semibold" style={{ color: C.textSub }}>
                       {d.category.toUpperCase()}
                     </span>
-                    <span className="text-[11px] font-bold" style={{ color: C.text }}>
-                      {d.count}
-                    </span>
+                    <span className="text-[11px] font-bold" style={{ color: C.text }}>{d.count}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
                     <div className="h-full rounded-full"
@@ -602,9 +792,7 @@ function OverviewTab({ data, onTabSwitch }:
       </div>
 
       <div className="bg-white rounded-2xl border p-5" style={{ borderColor: C.border }}>
-        <p className="font-semibold text-sm mb-4" style={{ color: C.text }}>
-          Status Distribution
-        </p>
+        <p className="font-semibold text-sm mb-4" style={{ color: C.text }}>Status Distribution</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { key: 'pending',       label: 'Pending',      n: data.pendingCount      ?? 0 },
@@ -619,12 +807,8 @@ function OverviewTab({ data, onTabSwitch }:
                 style={{ background: s.bg + '80' }}
                 onClick={() => onTabSwitch('reports')}>
                 <p className="text-2xl font-bold" style={{ color: s.color }}>{n}</p>
-                <p className="text-xs font-bold mt-1" style={{ color: s.color }}>
-                  {label.toUpperCase()}
-                </p>
-                <p className="text-[11px] mt-0.5" style={{ color: s.color + 'CC' }}>
-                  {pct(n)}%
-                </p>
+                <p className="text-xs font-bold mt-1" style={{ color: s.color }}>{label.toUpperCase()}</p>
+                <p className="text-[11px] mt-0.5" style={{ color: s.color + 'CC' }}>{pct(n)}%</p>
               </div>
             );
           })}
@@ -659,53 +843,38 @@ function RecentPendingCard({ onViewAll }: { onViewAll: () => void }) {
   return (
     <div className="bg-white rounded-2xl border p-5" style={{ borderColor: C.border }}>
       <div className="flex items-center justify-between mb-4">
-        <p className="font-semibold text-sm" style={{ color: C.text }}>
-          Recent Pending Reports
-        </p>
-        <button onClick={onViewAll}
-          className="text-xs font-semibold" style={{ color: T.primary }}>
+        <p className="font-semibold text-sm" style={{ color: C.text }}>Recent Pending Reports</p>
+        <button onClick={onViewAll} className="text-xs font-semibold" style={{ color: T.primary }}>
           View all
         </button>
       </div>
-
       {loading ? (
         <div className="flex justify-center py-6">
           <Loader2 className="w-5 h-5 animate-spin" style={{ color: T.primary }} />
         </div>
       ) : items.length === 0 ? (
-        <p className="text-center text-sm py-4" style={{ color: C.textMuted }}>
-          No pending reports
-        </p>
+        <p className="text-center text-sm py-4" style={{ color: C.textMuted }}>No pending reports</p>
       ) : (
         <div className="divide-y" style={{ borderColor: C.borderSm }}>
           {items.map(r => (
             <div key={r.id}
               className="flex items-start gap-3 py-3 hover:bg-gray-50 rounded-xl px-2 -mx-2 transition-colors">
-              <span className="text-xl mt-0.5">{catCfg(r.category).emoji}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm line-clamp-1" style={{ color: C.textSub }}>
-                  {r.description}
-                </p>
+                <p className="text-sm line-clamp-1" style={{ color: C.textSub }}>{r.description}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <MapPin className="w-3 h-3 flex-shrink-0" style={{ color: C.textMuted }} />
-                  <span className="text-[11px]" style={{ color: C.textMuted }}>
-                    {locName(r)}
-                  </span>
-                  <span className="text-[11px]" style={{ color: C.textMuted }}>
-                    {timeAgo(r.createdAt)}
-                  </span>
+                  <span className="text-[11px]" style={{ color: C.textMuted }}>{locName(r)}</span>
+                  <span className="text-[11px]" style={{ color: C.textMuted }}>{timeAgo(r.createdAt)}</span>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <button onClick={() => act(r.id, 'verify')}
-                  className="w-7 h-7 rounded-full border-2 flex items-center justify-center
-                    hover:bg-green-50 transition-colors"
+                  className="w-7 h-7 rounded-full border-2 flex items-center justify-center hover:bg-green-50 transition-colors"
                   style={{ borderColor: '#059669' }} title="Verify">
                   <Check className="w-3.5 h-3.5" style={{ color: '#059669' }} />
                 </button>
                 <button onClick={() => act(r.id, 'reject')}
-                  className="w-7 h-7 rounded-full border-2 flex items-center justify-center
-                    hover:bg-red-50 transition-colors"
+                  className="w-7 h-7 rounded-full border-2 flex items-center justify-center hover:bg-red-50 transition-colors"
                   style={{ borderColor: '#DC2626' }} title="Reject">
                   <X className="w-3.5 h-3.5" style={{ color: '#DC2626' }} />
                 </button>
@@ -717,6 +886,8 @@ function RecentPendingCard({ onViewAll }: { onViewAll: () => void }) {
     </div>
   );
 }
+
+// ─── Reports Tab ──────────────────────────────────────────────────────────────
 
 function ReportsTab({ toast }: { toast: ToastFn }) {
   const [reports,      setReports]      = useState<Report[]>([]);
@@ -736,15 +907,13 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
     setLoading(true); setErr('');
     try {
       const qs = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
-      if (search.trim())    qs.set('search',   search.trim());
-      if (status !== 'all') qs.set('status',   status.toUpperCase());
+      if (search.trim())      qs.set('search',   search.trim());
+      if (status !== 'all')   qs.set('status',   status.toUpperCase());
       if (category !== 'all') qs.set('category', category);
-
       const data = await apiFetch(`/reports/?${qs}`);
       const raw  = data.results ?? data.data ?? [];
       setReports(raw.map(normReport));
       setTotal(data.count ?? data.total ?? raw.length);
-
       const sc = data.status_counts ?? data.statusCounts;
       if (sc) {
         setStatusCounts({
@@ -790,29 +959,24 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
     <>
       <div className="flex gap-3 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[220px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-            style={{ color: C.textMuted }} />
-          <input value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: C.textMuted }} />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search reports by description, category, reporter, location…"
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border bg-white text-sm outline-none"
             style={{ borderColor: C.border }} />
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5"
-            style={{ color: C.textMuted }} />
-          <select value={category}
-            onChange={e => { setCategory(e.target.value); setPage(1); }}
-            className="pl-8 pr-8 py-2.5 rounded-xl border bg-white text-sm
-              outline-none appearance-none cursor-pointer"
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: C.textMuted }} />
+          <select value={category} onChange={e => { setCategory(e.target.value); setPage(1); }}
+            className="pl-8 pr-8 py-2.5 rounded-xl border bg-white text-sm outline-none appearance-none cursor-pointer"
             style={{ borderColor: C.border, color: C.textSub }}>
             <option value="all">All Categories</option>
             {Object.entries(CATEGORIES).map(([k, v]) => (
-              <option key={k} value={k}>{v.emoji} {v.label}</option>
+              <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5
-            pointer-events-none" style={{ color: C.textMuted }} />
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
+            style={{ color: C.textMuted }} />
         </div>
       </div>
 
@@ -830,13 +994,11 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
 
       {!loading && total > 0 && (
         <p className="text-xs mb-3" style={{ color: C.textMuted }}>
-          Showing {Math.min((page - 1) * PAGE_SIZE + 1, total)}–
-          {Math.min(page * PAGE_SIZE, total)} of {total} reports
+          Showing {Math.min((page - 1) * PAGE_SIZE + 1, total)}–{Math.min(page * PAGE_SIZE, total)} of {total} reports
         </p>
       )}
 
-      <div className="bg-white rounded-2xl border overflow-hidden shadow-sm"
-        style={{ borderColor: C.border }}>
+      <div className="bg-white rounded-2xl border overflow-hidden shadow-sm" style={{ borderColor: C.border }}>
         {loading ? <Spinner /> : err ? <ErrMsg msg={err} onRetry={load} /> :
          reports.length === 0 ? <Empty msg="No reports found." /> : (
           <>
@@ -844,21 +1006,15 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
               <table className="w-full">
                 <thead>
                   <tr style={{ background: C.bg }}>
-                    {['#', 'Category', 'Description', 'Location', 'Reporter',
-                      'Status', 'Confidence', 'Date', 'Actions'].map(h => (
-                      <th key={h}
-                        className="px-4 py-3 text-left text-[11px] font-semibold
-                          uppercase tracking-wide"
-                        style={{ color: C.textMuted }}>
-                        {h}
-                      </th>
+                    {['#', 'Category', 'Description', 'Location', 'Reporter', 'Status', 'Confidence', 'Date', 'Actions'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide"
+                        style={{ color: C.textMuted }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {reports.map((r, i) => (
-                    <tr key={r.id}
-                      className="border-t hover:bg-gray-50 transition-colors"
+                    <tr key={r.id} className="border-t hover:bg-gray-50 transition-colors"
                       style={{ borderColor: C.borderSm }}>
                       <td className="px-4 py-3 text-sm" style={{ color: C.textMuted }}>
                         {(page - 1) * PAGE_SIZE + i + 1}
@@ -876,44 +1032,35 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm whitespace-nowrap" style={{ color: C.textSub }}>
-                          {rName(r)}
-                        </span>
+                        <span className="text-sm whitespace-nowrap" style={{ color: C.textSub }}>{rName(r)}</span>
                       </td>
                       <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
+                      <td className="px-4 py-3"><ConfBar pct={confPct(r.confidenceScore)} /></td>
                       <td className="px-4 py-3">
-                        <ConfBar pct={confPct(r.confidenceScore)} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="text-xs font-medium whitespace-nowrap"
-                          style={{ color: C.textSub }}>
+                        <p className="text-xs font-medium whitespace-nowrap" style={{ color: C.textSub }}>
                           {timeAgo(r.createdAt)}
                         </p>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           <button onClick={() => setViewing(r)}
-                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                            title="View">
+                            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="View">
                             <Eye className="w-4 h-4" style={{ color: '#6366F1' }} />
                           </button>
                           {(r.status ?? '').toLowerCase() === 'pending' && (
                             <>
                               <button onClick={() => act(r.id, 'verify')}
-                                className="p-1.5 rounded-lg hover:bg-green-50 transition-colors"
-                                title="Verify">
+                                className="p-1.5 rounded-lg hover:bg-green-50 transition-colors" title="Verify">
                                 <Check className="w-4 h-4" style={{ color: '#059669' }} />
                               </button>
                               <button onClick={() => act(r.id, 'reject')}
-                                className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                                title="Reject">
+                                className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Reject">
                                 <X className="w-4 h-4" style={{ color: '#DC2626' }} />
                               </button>
                             </>
                           )}
                           <button onClick={() => setConfirmId(r.id)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                            title="Delete">
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
                             <Trash2 className="w-4 h-4" style={{ color: '#EF4444' }} />
                           </button>
                         </div>
@@ -949,11 +1096,14 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
   );
 }
 
+// ─── Clusters Tab ─────────────────────────────────────────────────────────────
+
 function ClustersTab({ toast }: { toast: ToastFn }) {
   const [clusters,  setClusters]  = useState<Cluster[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [err,       setErr]       = useState('');
   const [broadcast, setBroadcast] = useState<Cluster | null>(null);
+  const [detailing, setDetailing] = useState<Cluster | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setErr('');
@@ -972,11 +1122,10 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
         method: 'POST',
         body: JSON.stringify({ severity, message: msg }),
       });
-      setClusters(p => p.map(c =>
-        c.id === cluster.id ? { ...c, isAlertTriggered: true } : c
-      ));
+      setClusters(p => p.map(c => c.id === cluster.id ? { ...c, isAlertTriggered: true } : c));
       toast('Alert broadcasted to all nearby users', 'success');
       setBroadcast(null);
+      setDetailing(null);
     } catch (e: any) { toast(parseErr(e), 'error'); }
   };
 
@@ -1006,8 +1155,7 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
           const count   = cl.reportCount ?? 0;
 
           return (
-            <div key={cl.id}
-              className="bg-white rounded-2xl border p-5 flex flex-col gap-3"
+            <div key={cl.id} className="bg-white rounded-2xl border p-5 flex flex-col gap-3"
               style={{ borderColor: C.border }}>
 
               <div className="flex items-center justify-between">
@@ -1027,11 +1175,9 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
 
               {cl.centerLatitude != null && (
                 <div className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 flex-shrink-0"
-                    style={{ color: C.textMuted }} />
+                  <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: C.textMuted }} />
                   <span className="text-xs font-mono" style={{ color: C.textMuted }}>
-                    {Number(cl.centerLatitude).toFixed(4)},&nbsp;
-                    {Number(cl.centerLongitude).toFixed(4)}
+                    {Number(cl.centerLatitude).toFixed(4)},&nbsp;{Number(cl.centerLongitude).toFixed(4)}
                   </span>
                 </div>
               )}
@@ -1046,8 +1192,7 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
               {keys.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {keys.map(k => (
-                    <span key={k}
-                      className="text-[11px] px-2 py-0.5 rounded-full"
+                    <span key={k} className="text-[11px] px-2 py-0.5 rounded-full"
                       style={{ background: C.pill, color: C.textSub }}>
                       {k}
                     </span>
@@ -1055,23 +1200,36 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
                 </div>
               )}
 
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs" style={{ color: C.textMuted }}>
-                      Confidence:
-                    </span>
-                    <span className="text-xs font-bold" style={{ color: confCol }}>{pct}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
-                    <div className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, background: confCol }} />
-                  </div>
+              {/* Confidence bar */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs" style={{ color: C.textMuted }}>Confidence:</span>
+                  <span className="text-xs font-bold" style={{ color: confCol }}>{pct}%</span>
                 </div>
-                {!alerted && (
+                <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                  <div className="h-full rounded-full transition-all"
+                    style={{ width: `${pct}%`, background: confCol }} />
+                </div>
+              </div>
+
+              {/* Action buttons — always on their own row */}
+              <div className="flex items-center gap-2 pt-1">
+                <button onClick={() => setDetailing(cl)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                    text-xs font-semibold border transition-colors hover:bg-gray-50"
+                  style={{ borderColor: C.border, color: '#374151' }}>
+                  <Eye className="w-3.5 h-3.5" /> Details
+                </button>
+                {alerted ? (
+                  <div className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                    text-xs font-semibold"
+                    style={{ background: '#FEE2E2', color: '#DC2626' }}>
+                    <Radio className="w-3.5 h-3.5" /> Alerted
+                  </div>
+                ) : (
                   <button onClick={() => setBroadcast(cl)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white
-                      text-xs font-bold flex-shrink-0"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
+                      text-white text-xs font-semibold"
                     style={{ background: '#DC2626' }}>
                     <Radio className="w-3.5 h-3.5" /> Broadcast
                   </button>
@@ -1087,6 +1245,13 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
       </div>
 
       <AnimatePresence>
+        {detailing && (
+          <ClusterDetailsModal
+            cluster={detailing}
+            onClose={() => setDetailing(null)}
+            onBroadcast={() => { setBroadcast(detailing); setDetailing(null); }}
+          />
+        )}
         {broadcast && (
           <BroadcastModal
             cluster={broadcast}
@@ -1099,20 +1264,79 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
   );
 }
 
-function AlertsTab() {
-  const [alerts,  setAlerts]  = useState<AlertItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err,     setErr]     = useState('');
+// ─── Alerts Tab ───────────────────────────────────────────────────────────────
 
-  useEffect(() => {
+function AlertsTab({ toast }: { toast: ToastFn }) {
+  const [alerts,    setAlerts]    = useState<AlertItem[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [err,       setErr]       = useState('');
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  // Pull addNotification from the social store so we can inject locally
+  const addNotification = useSocialStore((s: any) => s.addNotification ?? s.addNotif ?? null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setErr('');
     apiFetch('/reports/alerts')
-      .then(d => setAlerts((d.results ?? d.data ?? []).map(normAlert)))
+      .then(d => {
+        // Handle: array directly, or wrapped in results/data
+        const raw = Array.isArray(d) ? d : (d.results ?? d.data ?? d ?? []);
+        setAlerts(raw.map(normAlert));
+      })
       .catch(e => setErr(parseErr(e)))
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => { load(); }, [load]);
+
+  /**
+   * "Send to All Users"
+   *
+   * 1. Calls POST /reports/alerts/{id}/send-to-all
+   *    → backend creates a Notification row for every user:
+   *        notificationType = 'ALERT_BROADCAST'
+   *        title            = "Alert: <severity> <category>"
+   *        message          = alert.message
+   *
+   * 2. Immediately injects a local notification into the Zustand store
+   *    so the current admin's notification drawer updates without a refresh.
+   */
+  const sendToAll = async (alert: AlertItem) => {
+    setSendingId(alert.id);
+    try {
+      await apiFetch(`/reports/alerts/${alert.id}/send-to-all`, { method: 'POST' });
+
+      // Optimistic local injection into notification drawer
+      if (addNotification) {
+        const sev = (alert.severity ?? 'MEDIUM').toUpperCase();
+        const cat = alert.cluster?.dominantCategory ?? '';
+        addNotification({
+          id:               `local-${alert.id}-${Date.now()}`,
+          type:             'ALERT_BROADCAST',
+          notificationType: 'ALERT_BROADCAST',
+          title:            `Alert Sent: ${sev}${cat ? ` · ${cat}` : ''}`,
+          message:          alert.message ?? 'Alert has been sent to all users.',
+          severity:         sev,
+          isRead:           false,
+          createdAt:        new Date().toISOString(),
+          meta: {
+            lat: alert.cluster?.centerLatitude,
+            lng: alert.cluster?.centerLongitude,
+          },
+        });
+      }
+
+      toast('Alert sent to all users successfully.', 'success');
+    } catch (e: any) {
+      toast(parseErr(e), 'error');
+    } finally {
+      setSendingId(null);
+    }
+  };
+
   if (loading) return <Spinner />;
-  if (err) return <ErrMsg msg={err} onRetry={() => window.location.reload()} />;
+  if (err)     return <ErrMsg msg={err} onRetry={load} />;
   if (alerts.length === 0) return <Empty msg="No alerts have been sent yet." />;
 
   return (
@@ -1122,28 +1346,29 @@ function AlertsTab() {
         const sevCfg  = SEV_CFG[sev] ?? SEV_CFG.MEDIUM;
         const cat     = a.cluster?.dominantCategory;
         const isAuto  = (a.triggerType ?? '').toUpperCase() === 'AUTO';
-        const date    = a.createdAt;
         const lat     = a.cluster?.centerLatitude;
         const lng     = a.cluster?.centerLongitude;
+        const isSending = sendingId === a.id;
 
         return (
           <div key={a.id}
             className="bg-white rounded-2xl border p-4 flex items-start gap-4"
             style={{ borderColor: C.border }}>
 
+            {/* Severity icon */}
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: sevCfg.bg }}>
               <AlertTriangle className="w-5 h-5" style={{ color: sevCfg.color }} />
             </div>
 
+            {/* Body */}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                   style={{ color: sevCfg.color, background: sevCfg.bg }}>
                   {sev}
                 </span>
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full
-                  flex items-center gap-1"
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1"
                   style={{ background: C.pill, color: C.textSub }}>
                   {isAuto
                     ? <><Activity className="w-3 h-3" /> Auto</>
@@ -1156,22 +1381,21 @@ function AlertsTab() {
                 {a.message ?? '—'}
               </p>
 
-              <div className="flex flex-wrap items-center gap-4 text-[11px]"
-                style={{ color: C.textMuted }}>
+              <div className="flex flex-wrap items-center gap-4 text-[11px]" style={{ color: C.textMuted }}>
                 {lat != null && (
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3 h-3" />
                     {Number(lat).toFixed(4)}, {Number(lng).toFixed(4)}
                   </span>
                 )}
-                {date && (
+                {a.createdAt && (
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {new Date(date).toLocaleDateString('en-US', {
+                    {new Date(a.createdAt).toLocaleDateString('en-US', {
                       month: 'short', day: 'numeric', year: 'numeric',
                     })}
                     {' at '}
-                    {new Date(date).toLocaleTimeString('en-US', {
+                    {new Date(a.createdAt).toLocaleTimeString('en-US', {
                       hour: '2-digit', minute: '2-digit',
                     })}
                   </span>
@@ -1183,6 +1407,19 @@ function AlertsTab() {
                 )}
               </div>
             </div>
+
+            {/* Send to All Users */}
+            <button
+              onClick={() => sendToAll(a)}
+              disabled={isSending}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs
+                font-semibold flex-shrink-0 disabled:opacity-60 transition-opacity"
+              style={{ background: T.primary }}>
+              {isSending
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Send    className="w-3.5 h-3.5" />}
+              Send to All Users
+            </button>
           </div>
         );
       })}
@@ -1190,8 +1427,10 @@ function AlertsTab() {
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export function ReportsPage({ toast }: { toast: ToastFn }) {
-  const [tab,      setTab]      = useState<'overview' | 'reports' | 'clusters' | 'alerts'>('overview');
+  const [tab,      setTab]      = useState<TabKey>('overview');
   const [overview, setOverview] = useState<Overview | null>(null);
   const [counts,   setCounts]   = useState({ reports: 0, clusters: 0, alerts: 0 });
   const [live,     setLive]     = useState(true);
@@ -1230,16 +1469,13 @@ export function ReportsPage({ toast }: { toast: ToastFn }) {
 
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: C.text }}>
-              Report Management
-            </h1>
+            <h1 className="text-2xl font-bold" style={{ color: C.text }}>Report Management</h1>
             <p className="text-sm mt-1" style={{ color: C.textMuted }}>
               Monitor, verify, and manage incident reports across all regions
             </p>
           </div>
           <button onClick={() => setLive(p => !p)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border
-              text-xs font-semibold transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors"
             style={live
               ? { borderColor: T.primary + '60', background: T.primary + '0F', color: T.primary }
               : { borderColor: C.border, color: C.textMuted, background: '#fff' }}>
@@ -1255,9 +1491,8 @@ export function ReportsPage({ toast }: { toast: ToastFn }) {
             const Icon   = t.icon;
             const active = tab === t.key;
             return (
-              <button key={t.key} onClick={() => setTab(t.key as any)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm
-                  font-semibold transition-all"
+              <button key={t.key} onClick={() => setTab(t.key as TabKey)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
                 style={active
                   ? { background: T.primary, color: '#fff' }
                   : { color: C.textSub }}>
@@ -1271,7 +1506,7 @@ export function ReportsPage({ toast }: { toast: ToastFn }) {
         {tab === 'overview'  && <OverviewTab data={overview} onTabSwitch={setTab} />}
         {tab === 'reports'   && <ReportsTab  toast={toast} />}
         {tab === 'clusters'  && <ClustersTab toast={toast} />}
-        {tab === 'alerts'    && <AlertsTab />}
+        {tab === 'alerts'    && <AlertsTab   toast={toast} />}
       </div>
     </div>
   );

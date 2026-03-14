@@ -14,6 +14,11 @@ class Post(models.Model):
     textContent = models.TextField()
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
+    likedBy = models.ManyToManyField(
+    settings.AUTH_USER_MODEL,
+    related_name='likedPosts',
+    blank=True,
+)
 
     class Meta:
         ordering = ['-createdAt']
@@ -37,6 +42,11 @@ class Comment(models.Model):
         related_name='comments'
     )
     textContent = models.TextField()
+    likedBy = models.ManyToManyField(
+    settings.AUTH_USER_MODEL,
+    related_name='likedComments',
+    blank=True,
+)
     image = models.ImageField(upload_to="comments/images/", null=True, blank=True)
     parent = models.ForeignKey(
         'self', null=True, blank=True,

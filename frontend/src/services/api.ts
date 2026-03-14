@@ -224,7 +224,6 @@ export const destinationsApi = {
   },
 };
 
-// ── Posts API ─────────────────────────────────────────────────────────────────
 
 export const postsApi = {
   getAll: async (page = 1): Promise<ApiResponse<PaginatedResponse<Post>>> => {
