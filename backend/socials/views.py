@@ -4,9 +4,9 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from django.db.models import Count
-from socials.models import Post, Comment, Bookmark, Share
+from socials.models import Post, Comment, Bookmark
 from socials.serializers import PostSerializer, CommentSerializer, ShareSerializer
-from globalmitra.permissions import IsOwnerOrReadOnly
+from globalmitra.permissions import IsOwnerOrReadOnly,IsAdminOrReadOnly
 
 
 @extend_schema(
@@ -79,7 +79,7 @@ class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_permissions(self):
         if self.request.method == "GET":
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated(), IsOwnerOrReadOnly()]
+        return [permissions.IsAuthenticated(), IsOwnerOrReadOnly(),IsAdminOrReadOnly()]
 
     def get_serializer_context(self):
         return {"request": self.request}
