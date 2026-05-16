@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { Search, Camera, Users, CheckCircle, ArrowRight } from 'lucide-react';
+import { Search, Camera, Users, ArrowRight } from 'lucide-react';
 
 const steps = [
   {
@@ -10,8 +10,9 @@ const steps = [
     subtitle: 'Explore Verified Destinations',
     description: 'Browse thousands of community-verified places with real-time updates from travelers like you. Filter by interests, budget, and travel style.',
     features: ['Smart recommendations', 'Real-time conditions', 'Authentic reviews'],
-    image: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=600&fit=crop',
-    color: '#FF6B35'
+    image: 'images/boudha.jpg',
+    color: '#FF6B35',
+    view: 'explore' as const  // Step 1 → Explore page (destinations)
   },
   {
     id: 2,
@@ -21,7 +22,8 @@ const steps = [
     description: 'Submit GPS-verified reports, photos, and tips. Help fellow travelers with accurate, up-to-date information.',
     features: ['GPS verification', 'Photo uploads', 'Earn rewards'],
     image: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=800&h=600&fit=crop',
-    color: '#F7B801'
+    color: '#F7B801',
+    view: 'report' as const  
   },
   {
     id: 3,
@@ -31,14 +33,29 @@ const steps = [
     description: 'Connect with fellow travelers, get advice from local guides, and build your travel reputation.',
     features: ['Meet travelers', 'Expert guides', 'Build reputation'],
     image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&h=600&fit=crop',
-    color: '#004E89'
+    color: '#004E89',
+    view: 'community' as const 
+    
   }
 ];
 
-export function HowItWorks() {
+type View = 'home' | 'explore' | 'destination' | 'community' | 'profile' | 'guide' | 'dashboard' | 'admin' | 'compare' | 'notifications' | 'report';
+
+interface HowItWorksProps {
+  onNavigate: (view: View) => void;
+}
+
+export function HowItWorks({ onNavigate }: HowItWorksProps) {
   const [activeStep, setActiveStep] = useState(1);
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { once: true, margin: '-100px' });
+
+  const handleStepClick = (stepId: number) => {
+    const step = steps.find(s => s.id === stepId);
+    if (step) {
+      onNavigate(step.view);
+    }
+  };
 
   return (
     <section 
@@ -129,15 +146,6 @@ export function HowItWorks() {
                           >
                             Step 0{step.id}
                           </span>
-                          {isActive && (
-                            <motion.span
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              className="text-[#2ECC71]"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </motion.span>
-                          )}
                         </div>
                         <h3 className={`font-bold text-lg mb-1 transition-colors ${
                           isActive ? 'text-[#2C3E50]' : 'text-[#7F8C8D]'
@@ -169,28 +177,37 @@ export function HowItWorks() {
                         )}
                       </div>
 
-                      {/* Arrow */}
-                      <ArrowRight 
-                        className={`w-5 h-5 transition-all ${
+                      {/* Arrow - Now navigates to the view */}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStepClick(step.id);
+                        }}
+                        className={`w-5 h-5 transition-all hover:scale-110 ${
                           isActive 
                             ? 'text-[#FF6B35] translate-x-1' 
                             : 'text-gray-300'
                         }`}
-                      />
+                      >
+                        <ArrowRight className="w-5 h-5" />
+                      </button>
                     </div>
                   </motion.div>
                 );
               })}
             </motion.div>
 
-            {/* Right - Image */}
+            {/* Right - Image - Now clickable to navigate */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.4 }}
               className="relative"
             >
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+              <button 
+                onClick={() => handleStepClick(activeStep)}
+                className="block relative rounded-3xl overflow-hidden shadow-2xl w-full text-left"
+              >
                 {steps.map((step) => (
                   <motion.div
                     key={step.id}
@@ -221,7 +238,7 @@ export function HowItWorks() {
                     </div>
                   </motion.div>
                 ))}
-              </div>
+              </button>
 
               {/* Decorative Elements */}
               <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-[#FF6B35]/10 rounded-full blur-2xl" />

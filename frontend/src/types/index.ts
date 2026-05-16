@@ -2,6 +2,9 @@
 export type UserRole = 'TOURIST' | 'GUIDE' | 'ADMIN';
 
 export interface User {
+  avatar: string | undefined;
+  profilePhoto: any;
+  User: string;
   id: string;
   email: string;
   fullName: string;

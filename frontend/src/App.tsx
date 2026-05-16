@@ -1,3 +1,5 @@
+
+
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
@@ -16,6 +18,7 @@ import LoginModal               from '@/components/LoginModal';
 import SignupModal              from '@/components/SignupModal';
 import ProfileCompletionModal   from '@/components/ProfileCompletionModal';
 import { ComparisonDrawer }     from '@/components/ComparisonDrawer';
+import { ComparisonPage }       from '@/components/ComparisonPage'; // NEW: Full page
 // import { ReportModal }          from '@/components/ReportModal';
 import { ReportPage }           from '@/components/ReportPage';
 import { SocialFeed }           from '@/components/SocialFeed';
@@ -26,6 +29,7 @@ import { ProfilePage }          from '@/components/ProfilePage';
 import { GuideProfilePage }     from '@/components/GuideProfilePage';
 import { GuideDashboardPage }   from '@/components/GuideDashboardPage';
 import AdminDashboardPage       from '@/components/AdminDashboard';
+import type { Destination } from './types';
 
 export type View =
   | 'home' | 'explore' | 'destination' | 'community'
@@ -45,13 +49,25 @@ function App() {
   const [isNotificationsOpen,     setIsNotificationsOpen]     = useState(false);
 
   const { isAuthenticated, user } = useAuthStore();
-  const { comparisonList }        = usePlaceStore();
+  const { comparisonList, removeFromComparison, clearComparison } = usePlaceStore();
   const unreadCount               = useSocialStore((state) => state.getUnreadCount());
 
   const handleDestinationClick = (destinationId: string) => {
     setSelectedDestinationId(destinationId);
     setCurrentView('destination');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // NEW: Handle comparison navigation - opens drawer if < 2 items, else goes to full page
+  const handleComparisonClick = () => {
+    if (comparisonList.length >= 2) {
+      // Navigate to full comparison page
+      setCurrentView('compare');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // Open drawer to add more destinations
+      setIsComparisonOpen(true);
+    }
   };
 
   const handleNavigate = (view: View) => {
@@ -86,28 +102,25 @@ function App() {
         onSignupClick={() => setIsSignupOpen(true)}
         unreadNotifications={unreadCount}
         comparisonCount={comparisonList.length}
-        onComparisonClick={() => setIsComparisonOpen(true)}
+        onComparisonClick={handleComparisonClick} // NEW: Updated handler
         onNotificationsClick={() => setIsNotificationsOpen(true)}
       />
 
       <main>
         <AnimatePresence mode="wait">
-
-          {/* ── Home ── */}
           {currentView === 'home' && (
             <motion.div key="home"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}>
               <HeroSection onExploreClick={() => setCurrentView('explore')} onPlaceClick={handleDestinationClick} />
               <DestinationMarquee onPlaceClick={handleDestinationClick} />
-              <HowItWorks />
+              <HowItWorks onNavigate={handleNavigate} />
               <FeaturesSection />
               <TestimonialsSection />
               <CTASection onJoinClick={() => setIsSignupOpen(true)} />
             </motion.div>
           )}
 
-          {/* ── Explore ── */}
           {currentView === 'explore' && (
             <motion.div key="explore"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
@@ -131,12 +144,17 @@ function App() {
 
           {/* ── Community ── */}
           {currentView === 'community' && (
-            <motion.div key="community"
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }} className="pt-24 pb-16">
-              <SocialFeed />
-            </motion.div>
-          )}
+  <motion.div key="community"
+    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+    transition={{ duration: 0.3 }} className="pt-24 pb-16">
+    <SocialFeed currentUser={user ? {
+      id:    user.id,
+      name:  user.fullName ?? user.fullName ?? user.User ?? user.email,
+      photo: user.photo ?? user.avatar ?? user.profilePhoto ?? null,
+      role:  user.role,
+    } : null} />
+  </motion.div>
+)}
 
           {/* ── Report Page ── */}
           {currentView === 'report' && (
@@ -187,6 +205,22 @@ function App() {
             </motion.div>
           )}
 
+  
+          {currentView === 'compare' && (
+            <motion.div key="compare"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }} className="pt-[60px] sm:pt-[68px]">
+              <ComparisonPage 
+                destinations={comparisonList}
+                onRemove={removeFromComparison}
+                onClear={clearComparison}
+                onDestinationClick={handleDestinationClick}
+                onBack={() => setCurrentView('explore')} availableDestinations={[]} onAdd={function (): void {
+                  throw new Error('Function not implemented.');
+                } }              />
+            </motion.div>
+          )}
+
         </AnimatePresence>
       </main>
 
@@ -209,13 +243,13 @@ function App() {
         onClose={handleProfileCompletionClose}
       />
 
-    
-      
+      {/* Comparison Drawer - for adding destinations when < 2 selected */}
       <ComparisonDrawer
         isOpen={isComparisonOpen}
         onClose={() => setIsComparisonOpen(false)}
         onPlaceClick={handleDestinationClick}
       />
+      
       <NotificationsPanel
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}

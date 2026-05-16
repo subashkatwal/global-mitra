@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Image, Send, Bookmark, BookmarkCheck, Share2, MessageCircle,
-  X, Loader2, MoreHorizontal, Trash2, Pencil, Heart,
+  X, Loader2, Trash2, Pencil, Heart,
   Facebook, Twitter, Link, Mail, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight, List, Globe, Users, Lock,
+  MoreVertical
 } from 'lucide-react';
 import { T, apiFetch, apiFetchForm, parseErr } from './AdminDashboard/utils';
 import { Spinner, ErrMsg, Empty, Confirm } from './AdminDashboard/ui';
@@ -34,6 +35,14 @@ const VISIBILITY = {
 } as const;
 type VisibilityKey = keyof typeof VISIBILITY;
 
+// Extended currentUser type to include role
+interface CurrentUser {
+  id:    string;
+  name:  string;
+  photo: string | null;
+  role?: string;
+}
+
 interface Post {
   id:            string;
   author?:       {
@@ -49,6 +58,8 @@ interface Post {
     image?:        string | null;
     email?:        string;
   };
+  authorId?:     string;
+  userId?:       string;   // injected by backend view
   fullName?:     string;
   full_name?:    string;
   name?:         string;
@@ -71,18 +82,21 @@ interface Post {
 }
 
 interface Comment {
-  id:          string;
-  author?:     Post['author'];
-  fullName?:   string;
-  full_name?:  string;
-  name?:       string;
-  photo?:      string | null;
-  avatar?:     string | null;
-  profilePhoto?: string | null;
-  userPhoto?:  string | null;
-  textContent: string;
-  image?:      string | null;
-  createdAt:   string;
+  id:              string;
+  author?:         Post['author'];
+  authorId?:       string;
+  userId?:         string;
+  fullName?:       string;
+  full_name?:      string;
+  name?:           string;
+  photo?:          string | null;
+  avatar?:         string | null;
+  profilePhoto?:   string | null;
+  userPhoto?:      string | null;
+  textContent:     string;
+  image?:          string | null;
+  createdAt:       string;
+  isOwn?:          boolean;
 }
 
 function timeAgo(iso: string): string {
@@ -102,37 +116,76 @@ function timeAgo(iso: string): string {
 function authorName(item: Post | Comment): string {
   const a = (item as Post).author;
   const candidates = [
-    a?.fullName, a?.full_name, a?.name, a?.username,
-    item.fullName, item.full_name, item.name,
-    a?.email?.split('@')[0],
+    a?.full_name,
+    a?.fullName,
+    a?.name,
+    a?.username,
+    item.full_name,
+    item.fullName,
+    item.name,
+    item.username,
+    (item as Post).userName,
   ];
-
   for (const c of candidates) {
-    if (typeof c === 'string' && c.trim() && !c.includes('@')) {
-      return c.trim();
-    }
+    if (typeof c === 'string' && c.trim() && !c.includes('@')) return c.trim();
   }
+  // fallback: strip email domain
+  const email = a?.email ?? '';
+  if (email) return email.split('@')[0];
   return 'Unknown';
 }
 
 function authorPhoto(item: Post | Comment): string | null {
   const a = (item as Post).author;
   const candidates = [
-    a?.photo, a?.avatar, a?.profilePhoto, a?.picture, a?.image,
-    item.photo, item.avatar, item.profilePhoto, item.userPhoto,
+    a?.photo,
+    a?.avatar,
+    a?.profilePhoto,
+    a?.picture,
+    a?.image,
+    item.userPhoto,
+    item.photo,
+    item.avatar,
+    item.profilePhoto,
+    (item as Post).picture,
   ];
-
   for (const p of candidates) {
-    if (typeof p === 'string' && p.trim() && p.startsWith('http')) {
-      return p;
-    }
+    if (typeof p === 'string' && p.trim()) return p;
   }
   return null;
 }
 
+/**
+ * Reliable ownership check.
+ * Priority: role-based admin bypass → UUID ID match → fallback false.
+ * Name matching removed — too error-prone.
+ */
+function isOwnItem(item: Post | Comment, currentUser: CurrentUser | null | undefined): boolean {
+  if (!currentUser) return false;
+
+  // Admins can manage any post/comment
+  if (currentUser.role === 'ADMIN') return true;
+
+  // Collect every possible user-id field from the item
+  const itemUserId =
+    (item as any).userId    ??   // injected by list view
+    (item as any).authorId  ??
+    (item as any).user_id   ??
+    (item as any).createdBy ??
+    (item as any).created_by ??
+    (item as Post).author?.id ??
+    null;
+
+  if (itemUserId && currentUser.id) {
+    return String(itemUserId).trim() === String(currentUser.id).trim();
+  }
+
+  return false;
+}
+
 function Avatar({ photo, name, size = 8 }: { photo?: string | null; name?: string; size?: number }) {
   const [imgErr, setImgErr] = useState(false);
-  const sz = `w-${size} h-${size}`;
+  const sizeClass = size === 10 ? 'w-10 h-10' : 'w-8 h-8';
   const initial = (name && name !== 'Unknown') ? name.charAt(0).toUpperCase() : '?';
 
   if (photo && !imgErr) {
@@ -140,7 +193,7 @@ function Avatar({ photo, name, size = 8 }: { photo?: string | null; name?: strin
       <img
         src={photo}
         alt={name || 'User'}
-        className={`${sz} rounded-full object-cover flex-shrink-0 border border-gray-200`}
+        className={`${sizeClass} rounded-full object-cover flex-shrink-0 border border-gray-200`}
         onError={() => setImgErr(true)}
       />
     );
@@ -148,7 +201,7 @@ function Avatar({ photo, name, size = 8 }: { photo?: string | null; name?: strin
 
   return (
     <div
-      className={`${sz} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-base shadow-sm`}
+      className={`${sizeClass} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-base shadow-sm`}
       style={{ background: T.primary || '#3B82F6' }}
     >
       {initial}
@@ -177,13 +230,13 @@ function RichTextEditor({ onChange }: { onChange: (html: string) => void }) {
     onChange(editorRef.current?.innerHTML ?? '');
   };
   const tools = [
-    { icon: Bold,        cmd: 'bold',                title: 'Bold' },
-    { icon: Italic,      cmd: 'italic',              title: 'Italic' },
-    { icon: Underline,   cmd: 'underline',           title: 'Underline' },
-    { icon: AlignLeft,   cmd: 'justifyLeft',         title: 'Left' },
-    { icon: AlignCenter, cmd: 'justifyCenter',       title: 'Center' },
-    { icon: AlignRight,  cmd: 'justifyRight',        title: 'Right' },
-    { icon: List,        cmd: 'insertUnorderedList',  title: 'List' },
+    { icon: Bold,        cmd: 'bold',               title: 'Bold' },
+    { icon: Italic,      cmd: 'italic',             title: 'Italic' },
+    { icon: Underline,   cmd: 'underline',          title: 'Underline' },
+    { icon: AlignLeft,   cmd: 'justifyLeft',        title: 'Left' },
+    { icon: AlignCenter, cmd: 'justifyCenter',      title: 'Center' },
+    { icon: AlignRight,  cmd: 'justifyRight',       title: 'Right' },
+    { icon: List,        cmd: 'insertUnorderedList', title: 'List' },
   ];
   return (
     <div className="border rounded-xl overflow-hidden" style={{ borderColor: C.border }}>
@@ -208,7 +261,7 @@ function RichTextEditor({ onChange }: { onChange: (html: string) => void }) {
 }
 
 function CreatePostBox({ currentUser, onPosted }: {
-  currentUser: { name: string; photo: string | null } | null;
+  currentUser: CurrentUser | null;
   onPosted: () => void;
 }) {
   const [html,       setHtml]       = useState('');
@@ -217,25 +270,18 @@ function CreatePostBox({ currentUser, onPosted }: {
   const [posting,    setPosting]    = useState(false);
   const [err,        setErr]        = useState('');
   const [visibility, setVisibility] = useState<VisibilityKey>('public');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef   = useRef<HTMLInputElement>(null);
   const plainText = html.replace(/<[^>]*>/g, '').trim();
 
   const submit = async () => {
     if (!plainText && !imgFile) return;
     setPosting(true); setErr('');
     try {
-      if (imgFile) {
-        const fd = new FormData();
-        fd.append('textContent', html);
-        fd.append('image', imgFile);
-        fd.append('visibility', visibility);
-        await apiFetchForm('/socials/posts', 'POST', fd);
-      } else {
-        await apiFetch('/socials/posts', {
-          method: 'POST',
-          body: JSON.stringify({ textContent: html, visibility }),
-        });
-      }
+      const fd = new FormData();
+      fd.append('textContent', html);
+      fd.append('visibility', visibility);
+      if (imgFile) fd.append('image', imgFile);
+      await apiFetchForm('/socials/posts', 'POST', fd);
       setHtml(''); setImgFile(null); setPreview(null); setVisibility('public');
       onPosted();
     } catch (e: any) { setErr(parseErr(e)); }
@@ -322,9 +368,9 @@ function ShareSheet({ postId, onClose, onShared }: {
   const share = async (platform: string) => {
     setSharing(platform);
     try {
-      await apiFetch(`/socials/posts/${postId}/share`, {
-        method: 'POST', body: JSON.stringify({ platform }),
-      });
+      const fd = new FormData();
+      fd.append('platform', platform);
+      await apiFetchForm(`/socials/posts/${postId}/share`, 'POST', fd);
       if (platform === 'copy_link')
         navigator.clipboard.writeText(window.location.origin + `/posts/${postId}`);
       onShared(); onClose();
@@ -360,14 +406,86 @@ function ShareSheet({ postId, onClose, onShared }: {
   );
 }
 
-function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [text,     setText]     = useState('');
-  const [imgFile,  setImgFile]  = useState<File | null>(null);
-  const [preview,  setPreview]  = useState<string | null>(null);
-  const [sending,  setSending]  = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+interface ThreeDotMenuProps {
+  onEdit?:    () => void;
+  onDelete?:  () => void;
+  position?:  'left' | 'right';
+}
+
+function ThreeDotMenu({ onEdit, onDelete, position = 'right' }: ThreeDotMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={e => { e.stopPropagation(); setIsOpen(prev => !prev); }}
+        className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+        title="More options"
+      >
+        <MoreVertical className="w-4 h-4 text-slate-400" />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1,    y: 0  }}
+            exit={{   opacity: 0, scale: 0.95, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className={`absolute ${position === 'right' ? 'right-0' : 'left-0'} top-full mt-1 w-36 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden z-50`}
+          >
+            {onEdit && (
+              <button
+                onClick={() => { onEdit(); setIsOpen(false); }}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
+                Edit
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => { onDelete(); setIsOpen(false); }}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function CommentsDrawer({ post, currentUser, onClose }: {
+  post:        Post;
+  currentUser: CurrentUser | null;
+  onClose:     () => void;
+}) {
+  const [comments,   setComments]   = useState<Comment[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [text,       setText]       = useState('');
+  const [imgFile,    setImgFile]    = useState<File | null>(null);
+  const [preview,    setPreview]    = useState<string | null>(null);
+  const [sending,    setSending]    = useState(false);
+  const [deleteId,   setDeleteId]   = useState<string | null>(null);
+  const [editId,     setEditId]     = useState<string | null>(null);
+  const [editText,   setEditText]   = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
   const fileRef   = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -386,16 +504,10 @@ function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) 
     if (!text.trim() && !imgFile) return;
     setSending(true);
     try {
-      if (imgFile) {
-        const fd = new FormData();
-        fd.append('textContent', text);
-        fd.append('image', imgFile);
-        await apiFetchForm(`/socials/posts/${post.id}/comments`, 'POST', fd);
-      } else {
-        await apiFetch(`/socials/posts/${post.id}/comments`, {
-          method: 'POST', body: JSON.stringify({ textContent: text }),
-        });
-      }
+      const fd = new FormData();
+      fd.append('textContent', text);
+      if (imgFile) fd.append('image', imgFile);
+      await apiFetchForm(`/socials/posts/${post.id}/comments`, 'POST', fd);
       setText(''); setImgFile(null); setPreview(null);
       load();
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 300);
@@ -409,6 +521,19 @@ function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) 
       setComments(p => p.filter(c => c.id !== id));
     } catch {}
     setDeleteId(null);
+  };
+
+  const saveEditComment = async () => {
+    if (!editId || !editText.trim()) return;
+    setSavingEdit(true);
+    try {
+      const fd = new FormData();
+      fd.append('textContent', editText);
+      await apiFetchForm(`/socials/comments/${editId}`, 'PATCH', fd);
+      setComments(p => p.map(c => c.id === editId ? { ...c, textContent: editText } : c));
+      setEditId(null); setEditText('');
+    } catch {}
+    finally { setSavingEdit(false); }
   };
 
   return (
@@ -435,24 +560,61 @@ function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) 
             <p className="text-center text-sm py-8" style={{ color: C.textMuted }}>
               No comments yet. Be the first!
             </p>
-          ) : comments.map(c => (
-            <div key={c.id} className="flex gap-3">
-              <Avatar photo={authorPhoto(c)} name={authorName(c)} size={8} />
-              <div className="flex-1 min-w-0">
-                <div className="rounded-2xl rounded-tl-none px-3 py-2" style={{ background: C.pill }}>
-                  <p className="text-xs font-semibold mb-0.5" style={{ color: C.text }}>{authorName(c)}</p>
-                  <p className="text-sm" style={{ color: C.textSub }}>{c.textContent}</p>
-                  {c.image && <img src={c.image} alt="" className="mt-2 rounded-lg max-h-32 object-cover" />}
-                </div>
-                <div className="flex items-center gap-3 mt-1 px-2">
-                  <span className="text-[11px]" style={{ color: C.textMuted }}>{timeAgo(c.createdAt)}</span>
-                  <button onClick={() => setDeleteId(c.id)}
-                    className="text-[11px] hover:text-red-500 transition-colors"
-                    style={{ color: C.textMuted }}>Delete</button>
+          ) : comments.map(c => {
+            const cName  = authorName(c);
+            const cPhoto = authorPhoto(c);
+            const isOwn  = c.isOwn === true || isOwnItem(c, currentUser);
+
+            return (
+              <div key={c.id} className="flex gap-3">
+                <Avatar photo={cPhoto} name={cName} size={8} />
+                <div className="flex-1 min-w-0">
+                  {editId === c.id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        rows={2}
+                        className="w-full resize-none text-sm outline-none rounded-xl px-3 py-2 border focus:ring-2"
+                        style={{ borderColor: C.border }}
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={saveEditComment} disabled={savingEdit}
+                          className="px-3 py-1 rounded-lg text-white text-xs font-semibold disabled:opacity-60"
+                          style={{ background: T.primary }}>
+                          {savingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+                        </button>
+                        <button onClick={() => { setEditId(null); setEditText(''); }}
+                          className="px-3 py-1 rounded-lg border text-xs font-semibold hover:bg-gray-50"
+                          style={{ borderColor: C.border, color: C.textSub }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="rounded-2xl rounded-tl-none px-3 py-2 flex-1" style={{ background: C.pill }}>
+                        <p className="text-xs font-semibold mb-0.5" style={{ color: C.text }}>{cName}</p>
+                        <p className="text-sm" style={{ color: C.textSub }}>{c.textContent}</p>
+                        {c.image && <img src={c.image} alt="" className="mt-2 rounded-lg max-h-32 object-cover" />}
+                      </div>
+
+                      {isOwn && (
+                        <ThreeDotMenu
+                          position="left"
+                          onEdit={()    => { setEditId(c.id); setEditText(c.textContent); }}
+                          onDelete={()  => setDeleteId(c.id)}
+                        />
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mt-1 px-2">
+                    <span className="text-[11px]" style={{ color: C.textMuted }}>{timeAgo(c.createdAt)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <div ref={bottomRef} />
         </div>
 
@@ -501,21 +663,20 @@ function CommentsDrawer({ post, onClose }: { post: Post; onClose: () => void }) 
   );
 }
 
-function PostCard({ post, onUpdate, onDelete, currentUserName }: {
-  post:            Post;
-  onUpdate:        (updated: Post) => void;
-  onDelete:        (id: string) => void;
-  currentUserName: string;
+function PostCard({ post, onUpdate, onDelete, currentUser }: {
+  post:        Post;
+  onUpdate:    (updated: Post) => void;
+  onDelete:    (id: string) => void;
+  currentUser: CurrentUser | null;
 }) {
   const name  = authorName(post);
   const photo = authorPhoto(post);
 
-  const [liked,        setLiked]        = useState(post.isLiked ?? false);
-  const [likeCount,    setLikeCount]    = useState(post.likeCount ?? 0);
+  const [liked,        setLiked]        = useState(post.isLiked    ?? false);
+  const [likeCount,    setLikeCount]    = useState(post.likeCount   ?? 0);
   const [bookmarked,   setBookmarked]   = useState(post.isBookmarked ?? false);
-  const [shareCount,   setShareCount]   = useState(post.shareCount ?? 0);
+  const [shareCount,   setShareCount]   = useState(post.shareCount  ?? 0);
   const [commentCount, setCommentCount] = useState(post.commentCount ?? 0);
-  const [showMenu,     setShowMenu]     = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare,    setShowShare]    = useState(false);
   const [confirmDel,   setConfirmDel]   = useState(false);
@@ -523,7 +684,7 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
   const [editText,     setEditText]     = useState(post.textContent);
   const [saving,       setSaving]       = useState(false);
 
-  const isOwn = name !== 'Unknown' && name === currentUserName;
+  const isOwn = isOwnItem(post, currentUser);
 
   const toggleLike = async () => {
     const wasLiked = liked;
@@ -549,22 +710,24 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
     if (!editText.trim()) return;
     setSaving(true);
     try {
-      const data = await apiFetch(`/socials/posts/${post.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ textContent: editText }),
-      });
+      const fd = new FormData();
+      fd.append('textContent', editText);
+      const data = await apiFetchForm(`/socials/posts/${post.id}`, 'PATCH', fd);
       onUpdate({ ...post, textContent: data.data?.textContent ?? editText });
       setEditing(false);
     } catch {}
     finally { setSaving(false); }
   };
-
+console.log('currentUser:', currentUser)
+console.log('post author id:', post.author?.id, post.userId, post.authorId)
+console.log('isOwn:', isOwn)
   return (
     <>
       <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl border shadow-sm overflow-hidden"
         style={{ borderColor: C.border }}>
 
+        {/* ── Post header ── */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div className="flex items-center gap-3">
             <Avatar photo={photo} name={name} size={10} />
@@ -578,32 +741,16 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
             </div>
           </div>
 
+          {/* Three-dot menu — visible to post owner OR admin */}
           {isOwn && (
-            <div className="relative">
-              <button onClick={() => setShowMenu(p => !p)}
-                className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-                <MoreHorizontal className="w-5 h-5" style={{ color: C.textMuted }} />
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 top-8 bg-white border rounded-xl shadow-lg z-10 overflow-hidden min-w-[130px]"
-                  style={{ borderColor: C.border }}>
-                  <button
-                    onClick={() => { setEditing(true); setShowMenu(false); }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
-                    style={{ color: C.textSub }}>
-                    <Pencil className="w-4 h-4" /> Edit
-                  </button>
-                  <button
-                    onClick={() => { setConfirmDel(true); setShowMenu(false); }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                    <Trash2 className="w-4 h-4" /> Delete
-                  </button>
-                </div>
-              )}
-            </div>
+            <ThreeDotMenu
+              onEdit={()   => setEditing(true)}
+              onDelete={()  => setConfirmDel(true)}
+            />
           )}
         </div>
 
+        {/* ── Post body ── */}
         <div className="px-4 pb-3">
           {editing ? (
             <div className="space-y-2">
@@ -636,6 +783,7 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
           </div>
         )}
 
+        {/* ── Counts row ── */}
         <div className="px-4 pb-2 flex items-center gap-4 text-xs" style={{ color: C.textMuted }}>
           {likeCount > 0 && (
             <span>{likeCount} {likeCount === 1 ? 'like' : 'likes'}</span>
@@ -648,6 +796,7 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
           {shareCount > 0 && <span>{shareCount} shares</span>}
         </div>
 
+        {/* ── Action bar ── */}
         <div className="border-t mx-4 py-1 flex items-center justify-around"
           style={{ borderColor: C.borderSm }}>
           <button onClick={toggleLike}
@@ -667,9 +816,7 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
           <button onClick={toggleBookmark}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
             style={{ color: bookmarked ? C.save : '#000000' }}>
-            {bookmarked
-              ? <BookmarkCheck className="w-4 h-4" />
-              : <Bookmark className="w-4 h-4" />}
+            {bookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
             {bookmarked ? 'Saved' : 'Save'}
           </button>
 
@@ -684,12 +831,16 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
 
       <AnimatePresence>
         {showComments && (
-          <CommentsDrawer post={post} onClose={() => {
-            setShowComments(false);
-            apiFetch(`/socials/posts/${post.id}/comments`)
-              .then(d => setCommentCount(d.count ?? d.data?.length ?? commentCount))
-              .catch(() => {});
-          }} />
+          <CommentsDrawer
+            post={post}
+            currentUser={currentUser}
+            onClose={() => {
+              setShowComments(false);
+              apiFetch(`/socials/posts/${post.id}/comments`)
+                .then(d => setCommentCount(d.count ?? d.data?.length ?? commentCount))
+                .catch(() => {});
+            }}
+          />
         )}
         {showShare && (
           <ShareSheet
@@ -716,8 +867,8 @@ function PostCard({ post, onUpdate, onDelete, currentUserName }: {
 }
 
 export function SocialFeed({ toast, currentUser }: {
-  toast?: ToastFn;
-  currentUser?: { name: string; photo: string | null } | null;
+  toast?:       ToastFn;
+  currentUser?: CurrentUser | null;
 }) {
   const [posts,   setPosts]   = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -739,45 +890,48 @@ export function SocialFeed({ toast, currentUser }: {
   const notify: ToastFn = toast ?? ((msg, type) => console.log(type, msg));
 
   return (
-    <div className="section-padding max-w-xl mx-auto" style={{ background: C.pageBg }}>
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="font-heading text-2xl font-bold" style={{ color: C.text }}>Community</h1>
-        <div className="flex gap-1 p-1 rounded-xl border" style={{ borderColor: C.border, background: '#fff' }}>
-          {(['feed', 'saved'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className="px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors"
-              style={tab === t
-                ? { background: T.primary, color: '#fff' }
-                : { color: C.textSub }}>
-              {t === 'feed' ? 'Feed' : 'Saved'}
-            </button>
-          ))}
+    <div className="min-h-screen" style={{ background: C.pageBg }}>
+      <div className="max-w-xl mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-5">
+          <h1 className="font-heading text-2xl font-bold" style={{ color: C.text }}>Community</h1>
+          <div className="flex gap-1 p-1 rounded-xl border" style={{ borderColor: C.border, background: '#fff' }}>
+            {(['feed', 'saved'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors"
+                style={tab === t ? { background: T.primary, color: '#fff' } : { color: C.textSub }}>
+                {t === 'feed' ? 'Feed' : 'Saved'}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {tab === 'feed' && (
+          <CreatePostBox
+            currentUser={currentUser ?? null}
+            onPosted={() => { load(); notify('Posted!', 'success'); }}
+          />
+        )}
+
+        {loading ? <Spinner /> : err ? <ErrMsg msg={err} onRetry={load} /> :
+          posts.length === 0 ? (
+            <Empty msg={tab === 'saved' ? 'No saved posts yet.' : 'No posts yet. Be the first to share!'} />
+          ) : (
+            <div className="space-y-4">
+              {posts.map(p => (
+                <PostCard
+                  key={p.id}
+                  post={p}
+                  currentUser={currentUser ?? null}
+                  onUpdate={updated => setPosts(prev => prev.map(x => x.id === updated.id ? updated : x))}
+                  onDelete={id      => setPosts(prev => prev.filter(x => x.id !== id))}
+                />
+              ))}
+            </div>
+          )
+        }
       </div>
-
-      {tab === 'feed' && (
-        <CreatePostBox
-          currentUser={currentUser ?? null}
-          onPosted={() => { load(); notify('Posted!', 'success'); }}
-        />
-      )}
-
-      {loading ? <Spinner /> : err ? <ErrMsg msg={err} onRetry={load} /> :
-       posts.length === 0 ? (
-         <Empty msg={tab === 'saved' ? 'No saved posts yet.' : 'No posts yet. Be the first to share!'} />
-       ) : (
-        <div className="space-y-4">
-          {posts.map(p => (
-            <PostCard
-              key={p.id}
-              post={p}
-              currentUserName={currentUser?.name ?? ''}
-              onUpdate={updated => setPosts(prev => prev.map(x => x.id === updated.id ? updated : x))}
-              onDelete={id => setPosts(prev => prev.filter(x => x.id !== id))}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
+
+export default SocialFeed;
