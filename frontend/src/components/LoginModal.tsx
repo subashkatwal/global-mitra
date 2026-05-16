@@ -308,12 +308,27 @@ if (res.success) {
 
             {/* Header */}
             <div className="pt-8 sm:pt-10 pb-4 sm:pb-6 px-6 sm:px-10 text-center">
-              <div className="flex items-center justify-center gap-2 sm:gap-3 mb-4 sm:mb-5">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#2D6A4F] to-[#95D5B2] flex items-center justify-center">
-                  <span className="text-white font-bold text-lg sm:text-xl">GM</span>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-[#1B4332]">Global Mitra</h1>
-              </div>
+              <div className="flex items-center justify-center -gap-2 mb-4 sm:mb-5">
+    <img 
+      src="/images/global.png" 
+      alt="Global Mitra logo" 
+      className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-contain flex-shrink-0"
+      onError={(e) => {
+        e.currentTarget.style.display = 'none';
+        const parent = e.currentTarget.parentElement;
+        if (parent) {
+          parent.innerHTML = `
+            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg gradient-primary flex items-center justify-center shadow">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+              </svg>
+            </div>
+          `;
+        }
+      }} 
+    />
+    <h1 className="text-xl sm:text-2xl font-bold text-[#1B4332] -ml-2">Global Mitra</h1>
+  </div>
 
               {mode === 'login' && (
                 <>
