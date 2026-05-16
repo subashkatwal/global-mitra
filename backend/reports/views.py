@@ -5,6 +5,8 @@ from rest_framework.views import APIView
 from django.db.models import Count
 from django.utils import timezone
 from datetime import timedelta
+
+from sklearn import cluster
 from globalmitra.permissions import IsAdminUser
 
 from reports.models import (
@@ -23,7 +25,6 @@ from reports.serializers import (
 )
 
 
-
 class ReportListCreateView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
@@ -31,6 +32,7 @@ class ReportListCreateView(APIView):
         if self.request.method == "POST":
             return [permissions.IsAuthenticated()]
         return [IsAdminUser()]
+
     def get(self, request):
         qs = IncidentReport.objects.select_related("user").order_by("-createdAt")
 
@@ -53,7 +55,7 @@ class ReportListCreateView(APIView):
             "PENDING": status_counts.get("PENDING", 0),
             "VERIFIED": status_counts.get("VERIFIED", 0),
             "REJECTED": status_counts.get("REJECTED", 0),
-            "AUTO_VERIFIED": status_counts.get("AUTO_VERIFIED", 0),
+            "AUTO_ALERTED": status_counts.get("AUTO_ALERTED", 0),
         }
 
         serializer = IncidentReportReadSerializer(
@@ -61,7 +63,6 @@ class ReportListCreateView(APIView):
         )
         return Response({"results": serializer.data, "status_counts": counts})
 
-   
     def post(self, request):
         serializer = IncidentReportCreateSerializer(
             data=request.data, context={"request": request}
@@ -87,7 +88,7 @@ class ReportDetailView(APIView):
             return IncidentReport.objects.select_related("user").get(pk=pk)
         except IncidentReport.DoesNotExist:
             return None
-        
+
     def get(self, request, pk):
         report = self.get_object(pk)
         if not report:
@@ -146,7 +147,6 @@ class ReportDetailView(APIView):
             IncidentReportReadSerializer(report, context={"request": request}).data
         )
 
-   
     def delete(self, request, pk):
         report = self.get_object(pk)
         if not report:
@@ -155,7 +155,8 @@ class ReportDetailView(APIView):
             )
         report.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
+
+
 class ReportVerifyView(APIView):
     permission_classes = [IsAdminUser]
 
@@ -261,7 +262,7 @@ class ReportsOverviewView(APIView):
                 "pending_count": status_map.get("PENDING", 0),
                 "verified_count": status_map.get("VERIFIED", 0),
                 "rejected_count": status_map.get("REJECTED", 0),
-                "auto_alerted_count": status_map.get("AUTO_VERIFIED", 0),
+                "auto_alerted_count": status_map.get("AUTO_ALERTED", 0),
                 "active_clusters": IncidentCluster.objects.count(),
                 "alerts_sent": AlertBroadcast.objects.count(),
                 "weekly_change": weekly_change,
@@ -275,13 +276,11 @@ class ClusterListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        qs = IncidentCluster.objects.annotate(_report_count=Count("reports")).order_by(
-            "-createdAt"
-        )
+        qs = IncidentCluster.objects.annotate(_report_count=Count("reports")).order_by("-createdAt")
 
         status_param = request.query_params.get("status")
         if status_param == "Verified":
-            qs = qs.filter(isAlertTriggered=True)
+            qs = qs.filter(isAlertTriggered=True) 
         elif status_param == "Possible":
             qs = qs.filter(isAlertTriggered=False)
 
@@ -316,7 +315,6 @@ class ClusterDetailView(APIView):
         return Response(
             IncidentClusterDetailSerializer(cluster, context={"request": request}).data
         )
-
 
     def delete(self, request, pk):
         cluster = self.get_object(pk)
@@ -364,11 +362,11 @@ class ClusterBroadcastView(APIView):
         )
 
         cluster.isAlertTriggered = True
-        cluster.save(update_fields=["isAlertTriggered"])
+        cluster.save(update_fields=["isAlertTriggered"]) 
 
         for report in cluster.reports.select_related("user").all():
             Notification.objects.create(
-                recipient=report.user,
+                recipient=report.user,  
                 notificationType="ALERT_BROADCAST",
                 title=f"Alert: {cluster.dominantCategory.replace('_', ' ').title()}",
                 message=message,
@@ -385,9 +383,9 @@ class AlertListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        qs = AlertBroadcast.objects.select_related("cluster", "broadcastedBy").order_by(
-            "-broadcastTime"
-        )
+        qs = AlertBroadcast.objects.select_related(
+            "cluster", "broadcastedBy"
+        ).order_by("-broadcastTime")
 
         severity = request.query_params.get("severity")
         if severity:
@@ -395,7 +393,7 @@ class AlertListView(APIView):
 
         trigger = request.query_params.get("trigger")
         if trigger:
-            qs = qs.filter(triggerType__iexact=trigger)
+            qs = qs.filter(trigger_type__iexact=trigger)
 
         serializer = AlertBroadcastSerializer(
             qs, many=True, context={"request": request}
@@ -468,7 +466,6 @@ class NotificationDetailView(APIView):
             NotificationSerializer(notif, context={"request": request}).data
         )
 
-
     def patch(self, request, pk):
         notif = self.get_object(pk, request.user)
         if not notif:
@@ -500,13 +497,8 @@ class MarkAllNotificationsReadView(APIView):
         ).update(isRead=True)
         return Response({"marked_read": updated})
 
-class AlertSendToAllView(APIView):
-    """
-    POST /api/v1/reports/alerts/<uuid:pk>/send-to-all
 
-    Sends the alert as a Notification to every user in the system.
-    Uses get_or_create so repeated calls won't duplicate notifications.
-    """
+class AlertSendToAllView(APIView):
     permission_classes = [IsAdminUser]
 
     def post(self, request, pk):
@@ -519,12 +511,13 @@ class AlertSendToAllView(APIView):
                 {"detail": "Alert not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        cluster  = alert.cluster
+        cluster = alert.cluster
         category = (cluster.dominantCategory or "Incident").replace("_", " ").title()
-        title    = f"{alert.severity} Alert: {category}"
-        message  = alert.message
+        title = f"{alert.severity} Alert: {category}"
+        message = alert.message
 
         from accounts.models import User as UserModel
+
         users = UserModel.objects.all()
 
         created_count = 0
