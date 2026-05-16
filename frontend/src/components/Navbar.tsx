@@ -26,7 +26,6 @@ export function Navbar({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [logoutToast,      setLogoutToast]      = useState(false);
 
-  // Subscribe to user as a selector — any setUser() call re-renders Navbar
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user            = useAuthStore((s) => s.user);
   const logout          = useAuthStore((s) => s.logout);
@@ -57,7 +56,7 @@ export function Navbar({
   const isOnProfileView   = currentView === 'profile' || currentView === 'guide' || currentView === 'admin';
   const roleLabel         = isAdmin ? 'Admin' : isGuide ? 'Guide' : null;
 
-  // Now that 'compare' is in the View union, this comparison is valid
+  
   const isOnCompare = currentView === 'compare';
 
   const navLinks: { id: View; label: string; icon: React.ElementType }[] = [
@@ -91,21 +90,29 @@ export function Navbar({
       >
         <div className="w-full px-4 sm:px-6 lg:px-10">
           <div className="relative flex items-center h-[60px] sm:h-[68px] gap-2">
-
-            {/* Logo */}
-            <motion.button onClick={() => onNavigate('home')} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-              className="flex items-center gap-2 flex-shrink-0 focus:outline-none">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg overflow-hidden shadow flex-shrink-0 bg-[#D0F0E4]">
-                <img src="/images/Globalmitra logo.png" alt="Global Mitra logo" className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    (e.currentTarget.parentElement as HTMLElement).innerHTML =
-                      `<div class="w-full h-full gradient-primary flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg></div>`;
-                  }} />
-              </div>
-              <span className="font-heading font-bold text-[15px] sm:text-[17px] text-[#1A3D2B] tracking-tight">Global Mitra</span>
-            </motion.button>
-
+{/* Logo */}
+<motion.button onClick={() => onNavigate('home')} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+  className="flex items-center -gap-2 flex-shrink-0 focus:outline-none">
+  <img 
+    src="/images/global.png" 
+    alt="Global Mitra logo" 
+    className="w-23 h-20 rounded-lg object-contain flex-shrink-0"
+    onError={(e) => {
+      e.currentTarget.style.display = 'none';
+      const parent = e.currentTarget.parentElement;
+      if (parent) {
+        parent.innerHTML = `
+          <div class="w-30 h-30 rounded-lg gradient-primary flex items-center justify-center shadow">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+            </svg>
+          </div>
+        `;
+      }
+    }} 
+  />
+  <span className="font-heading font-bold text-[15px] sm:text-[17px] text-[#1A3D2B] tracking-tight -ml-2">Global Mitra</span>
+</motion.button>
             {/* Center nav */}
             <div className="hidden lg:flex items-center gap-0.5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               {navLinks.map((link, i) => {
@@ -133,7 +140,7 @@ export function Navbar({
             <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
 
               {/* Compare button — navigates to 'compare' view via onComparisonClick */}
-              {/* <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
+              <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
                 onClick={onComparisonClick}
                 className={`hidden xl:flex items-center gap-1.5 px-3 py-2 rounded-lg border text-[12px] font-semibold transition-colors relative whitespace-nowrap ${
                   isOnCompare
@@ -146,7 +153,7 @@ export function Navbar({
                     {comparisonCount}
                   </span>
                 )}
-              </motion.button> */}
+              </motion.button>
 
               {/* Bell */}
               {isAuthenticated && (
