@@ -19,6 +19,8 @@ from profiles.serializers import (
     AdminGuideProfileListSerializer,
     AdminGuideProfileDetailSerializer,
 )
+import uuid
+from datetime import datetime
 from globalmitra.permissions import IsAdminUser
 from accounts.utils import (
     send_guide_verification_approved_email,
@@ -575,7 +577,7 @@ class AdminGuideListView(generics.GenericAPIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        license_number = f"PENDING-{uuid.uuid4().hex[:8]}-{int(datetime.now().timestamp())}"
         guide_profile = GuideProfile.objects.create(
             user=user,
             licenseNumber=license_number,
