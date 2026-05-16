@@ -5,7 +5,6 @@ import { T, apiFetch, apiFetchMultipart, parseErr } from './utils';
 import { Badge, Spinner, ErrMsg, Empty, Modal, FormField, inputCls, inputStyle, Confirm, Pagination, Table, Tr, Td, ActionBtn } from './ui';
 import type { Destination, ToastFn } from './types';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
 const display = (v: any) =>
   v === null || v === undefined || v === '' ? '—' : String(v);
 
@@ -28,7 +27,6 @@ function normaliseDest(raw: any): Destination {
   };
 }
 
-// ─── Destination Detail Modal ─────────────────────────────────────────────────
 function DestinationDetailModal({
   dest,
   onClose,
@@ -105,7 +103,6 @@ function DestinationDetailModal({
   );
 }
 
-// ─── Destination Form Modal ───────────────────────────────────────────────────
 function DestinationFormModal({
   dest,
   onClose,

@@ -20,5 +20,5 @@ urlpatterns = [
     path('/users/<uuid:id>', AdminUserDetailView.as_view(), name='admin-user-detail'),
     path('/guides/', AdminGuideListView.as_view(), name='admin-guide-list'),
     path('/guides/<uuid:id>', AdminGuideDetailView.as_view(), name='admin-guide-detail'),
-     path('api/v1/profile/users/me/photo', UserPhotoUploadView.as_view()),
+    path('/users/me/photo', UserPhotoUploadView.as_view(), name='user-photo-upload'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

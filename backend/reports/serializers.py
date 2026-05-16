@@ -3,13 +3,6 @@ from reports.models import IncidentReport, IncidentCluster, AlertBroadcast, Noti
 
 
 class IncidentReportCreateSerializer(serializers.ModelSerializer):
-    """
-    POST /api/v1/incidents/reports
-    Accepts multipart/form-data.
-    `user` is injected by the view — never sent by the client.
-    `image` is optional (blank=True, null=True in model).
-    """
-
     class Meta:
         model = IncidentReport
         fields = [
@@ -39,20 +32,13 @@ class IncidentReportCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Longitude must be between -180 and 180.")
         return value
 
-    def create(self, validated_data):
-        # view calls serializer.save(user=request.user)
-        return IncidentReport.objects.create(**validated_data)
-
 
 class IncidentReportReadSerializer(serializers.ModelSerializer):
-    """
-    Used in cluster detail, admin list, and POST response.
-    Exposes author info alongside report fields.
-    """
-
-    authorName = serializers.SerializerMethodField()
-    authorEmail = serializers.SerializerMethodField()
-    authorRole = serializers.SerializerMethodField()
+    authorName      = serializers.SerializerMethodField()
+    authorEmail     = serializers.SerializerMethodField()
+    authorRole      = serializers.SerializerMethodField()
+    confidenceScore = serializers.FloatField(read_only=True)
+    createdAt       = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = IncidentReport
@@ -66,6 +52,7 @@ class IncidentReportReadSerializer(serializers.ModelSerializer):
             "confidenceScore",
             "status",
             "createdAt",
+            "rejectionReason",
             "authorName",
             "authorEmail",
             "authorRole",
@@ -79,18 +66,19 @@ class IncidentReportReadSerializer(serializers.ModelSerializer):
         return obj.user.email
 
     def get_authorRole(self, obj):
-        return obj.user.role
+        return getattr(obj.user, "role", "USER")
 
 
 class IncidentClusterSerializer(serializers.ModelSerializer):
-    """
-    GET /api/v1/incidents/clusters
-    Returns all fields the frontend ReportPage needs:
-    status label, report count, centroid, keywords, alert flag.
-    """
-
-    status = serializers.SerializerMethodField()
-    reportCount = serializers.SerializerMethodField()
+    status           = serializers.SerializerMethodField()
+    reportCount      = serializers.SerializerMethodField()
+    centerLatitude   = serializers.FloatField(read_only=True)
+    centerLongitude  = serializers.FloatField(read_only=True)
+    topKeywords      = serializers.ListField(read_only=True)
+    dominantCategory = serializers.CharField(read_only=True)
+    confidenceScore  = serializers.FloatField(read_only=True)
+    isAlertTriggered = serializers.BooleanField(read_only=True)
+    createdAt        = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = IncidentCluster
@@ -111,16 +99,10 @@ class IncidentClusterSerializer(serializers.ModelSerializer):
         return "Verified" if obj.isAlertTriggered else "Possible"
 
     def get_reportCount(self, obj):
-        # Use annotated value if present (from queryset), else hit M2M
         return getattr(obj, "_report_count", None) or obj.reports.count()
 
 
 class IncidentClusterDetailSerializer(IncidentClusterSerializer):
-    """
-    Cluster detail — includes the individual reports inside.
-    Used by admin when reviewing a cluster.
-    """
-
     reports = IncidentReportReadSerializer(many=True, read_only=True)
 
     class Meta(IncidentClusterSerializer.Meta):
@@ -128,17 +110,13 @@ class IncidentClusterDetailSerializer(IncidentClusterSerializer):
 
 
 class AlertBroadcastSerializer(serializers.ModelSerializer):
-    clusterId = serializers.UUIDField(source="cluster.id", read_only=True)
-    dominantCategory = serializers.CharField(
-        source="cluster.dominantCategory", read_only=True
-    )
-    centerLatitude = serializers.FloatField(
-        source="cluster.centerLatitude", read_only=True
-    )
-    centerLongitude = serializers.FloatField(
-        source="cluster.centerLongitude", read_only=True
-    )
+    clusterId          = serializers.UUIDField(source="cluster.id", read_only=True)
+    dominantCategory   = serializers.CharField(source="cluster.dominantCategory", read_only=True)
+    centerLatitude     = serializers.FloatField(source="cluster.centerLatitude", read_only=True)
+    centerLongitude    = serializers.FloatField(source="cluster.centerLongitude", read_only=True)
     broadcastedByEmail = serializers.SerializerMethodField()
+    triggerType        = serializers.CharField(read_only=True)
+    broadcastTime      = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = AlertBroadcast
@@ -160,6 +138,11 @@ class AlertBroadcastSerializer(serializers.ModelSerializer):
 
 
 class NotificationSerializer(serializers.ModelSerializer):
+    notificationType = serializers.CharField(read_only=True)
+    isRead           = serializers.BooleanField(read_only=True)
+    createdAt        = serializers.DateTimeField(read_only=True)
+    incidentReport   = IncidentReportReadSerializer(read_only=True)
+
     class Meta:
         model = Notification
         fields = [
@@ -169,4 +152,5 @@ class NotificationSerializer(serializers.ModelSerializer):
             "message",
             "isRead",
             "createdAt",
+            "incidentReport",
         ]

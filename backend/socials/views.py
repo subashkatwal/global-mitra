@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from django.db.models import Count
 from socials.models import Post, Comment, Bookmark
@@ -40,11 +40,14 @@ class PostListCreateView(generics.ListCreateAPIView):
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+        for item in data:
+            item["userId"] = str(queryset.get(id=item["id"]).user.id)
         return Response(
             {
                 "message": "Posts retrieved successfully.",
                 "count": queryset.count(),
-                "data": serializer.data,
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )
@@ -85,9 +88,12 @@ class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
         return {"request": self.request}
 
     def retrieve(self, request, *args, **kwargs):
-        serializer = self.get_serializer(self.get_object())
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        data["userId"] = str(instance.user.id)
         return Response(
-            {"message": "Post retrieved successfully.", "data": serializer.data}
+            {"message": "Post retrieved successfully.", "data": data}
         )
 
     def patch(self, request, *args, **kwargs):
@@ -234,11 +240,14 @@ class MyBookmarksView(generics.ListAPIView):
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+        for item in data:
+            item["userId"] = str(queryset.get(id=item["id"]).user.id)
         return Response(
             {
                 "message": "Bookmarked posts retrieved successfully.",
                 "count": queryset.count(),
-                "data": serializer.data,
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )
@@ -336,7 +345,7 @@ class PostShareView(GenericAPIView):
 )
 class CommentListCreateView(generics.ListCreateAPIView):
     serializer_class = CommentSerializer
-    parser_classes = [ FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self):
         if self.request.method == "POST":
@@ -362,11 +371,14 @@ class CommentListCreateView(generics.ListCreateAPIView):
                 status=status.HTTP_200_OK,
             )
         serializer = self.get_serializer(queryset, many=True)
+        data = serializer.data
+        for item in data:
+            item["userId"] = str(queryset.get(id=item["id"]).user.id)
         return Response(
             {
                 "message": "Comments retrieved successfully.",
                 "count": queryset.count(),
-                "data": serializer.data,
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )
@@ -465,9 +477,12 @@ class CommentDetailView(generics.RetrieveUpdateDestroyAPIView):
         return {"request": self.request}
 
     def retrieve(self, request, *args, **kwargs):
-        serializer = self.get_serializer(self.get_object())
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        data["userId"] = str(instance.user.id)
         return Response(
-            {"message": "Comment retrieved successfully.", "data": serializer.data}
+            {"message": "Comment retrieved successfully.", "data": data}
         )
 
     def patch(self, request, *args, **kwargs):

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Post } from '@/types';
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('access') ?? localStorage.getItem('token') ?? '';
+  const token = localStorage.getItem('access_token') ?? localStorage.getItem('token') ?? '';
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

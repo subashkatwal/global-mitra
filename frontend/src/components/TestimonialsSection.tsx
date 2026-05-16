@@ -14,10 +14,10 @@ const testimonials = [
   },
   {
     id: 2,
-    name: 'Arun Ratgaiyan',
+    name: 'Arun Ratgainya',
     role: 'Adventure Seeker',
     location: 'Balkumari,kathmandu',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop',
+    avatar: 'images/arundon.jpg',
     rating: 5,
     quote: 'The GPS verification is genius. I know I\'m getting real info from someone who was actually there. Saved me from a closed trail in Nepal!'
   },
@@ -25,8 +25,8 @@ const testimonials = [
     id: 3,
     name: 'Aman Poudel',
     role: 'Family Traveler',
-    location: 'Pepsicola,Kathmandu',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop',
+    location: 'Koteshwor,Kathmandu',
+    avatar: '/images/amanhero.jpg',
     rating: 5,
     quote: 'Planning family trips used to be stressful. Now I get real-time updates on crowd levels and kid-friendly spots. Game changer for our vacations!'
   },

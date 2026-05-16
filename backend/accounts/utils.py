@@ -181,9 +181,9 @@ Your guide account has been **successfully verified** by our admin team.
 
 You can now:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ Accept tour bookings
-✓ Create and publish tour packages
-✓ Appear in guide search results
+✓ View and explore destinations
+✓ Submit an incident report
+✓ Share your experience in community
 ✓ Receive inquiries from tourists
 
 Your profile is now live and visible to all users.

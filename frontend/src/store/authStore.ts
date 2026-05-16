@@ -10,15 +10,14 @@ interface AuthState {
   logout: () => void;
   setUser: (user: User) => void;
   setTokens: (tokens: Tokens) => void;
-  // Stores tokens for a guide after OTP verification so they can
-  // hit /guides/profile/complete (which requires IsAuthenticated)
-  // without being considered "fully logged in" yet.
   setPendingGuideTokens: (tokens: Tokens) => void;
+  // Add this to force clear persisted state
+  _clearPersistedState: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       tokens: null,
       isAuthenticated: false,
@@ -30,9 +29,19 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+       
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        set({ user: null, tokens: null, isAuthenticated: false });
+        localStorage.removeItem('auth-storage'); 
+    
+        set({ 
+          user: null, 
+          tokens: null, 
+          isAuthenticated: false 
+        });
+        
+    
+        get()._clearPersistedState();
       },
 
       setUser: (user: User) => set({ user }),
@@ -43,12 +52,16 @@ export const useAuthStore = create<AuthState>()(
         set({ tokens, isAuthenticated: true });
       },
 
-      // Stores tokens + basic user for guide profile completion step.
-      // Does NOT set isAuthenticated: true — guide is not fully active yet.
       setPendingGuideTokens: (tokens: Tokens) => {
         localStorage.setItem('access_token', tokens.access);
         localStorage.setItem('refresh_token', tokens.refresh);
         set({ tokens });
+      },
+
+      _clearPersistedState: () => {
+  
+        const storage = createJSONStorage(() => localStorage);
+        storage.removeItem('auth-storage');
       },
     }),
     {
