@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback,useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   RefreshCw, Search, Eye, Trash2, Check, X, MapPin, Clock,
@@ -11,14 +11,21 @@ import { useSocialStore } from '@/store/socialStore';
 import type { ToastFn } from './types';
 
 const C = {
-  text:      '#111111',   // primary — near black
-  textSub:   '#374151',   // secondary — dark gray
-  textMuted: '#6B7280',   // muted — medium gray
+  text:      '#111111',   
+  textSub:   '#374151',  
+  textMuted: '#6B7280',  
   border:    T.border,
   borderSm:  T.borderSm,
   bg:        '#F7F9FC',
   cardBg:    '#FFFFFF',
   pill:      '#F1F5F9',
+};
+const PIPELINE = {
+  TIME_WINDOW_HOURS:   3,
+  GEO_RADIUS_KM:       3.0,
+  MIN_CLUSTER_REPORTS: 3,
+  DBSCAN_EPS:          0.62,
+  DBSCAN_MIN_SAMPLES:  3,
 };
 
 const CATEGORIES: Record<string, { label: string; color: string; bg: string }> = {
@@ -1096,7 +1103,6 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
   );
 }
 
-// ─── Clusters Tab ─────────────────────────────────────────────────────────────
 
 function ClustersTab({ toast }: { toast: ToastFn }) {
   const [clusters,  setClusters]  = useState<Cluster[]>([]);
@@ -1104,6 +1110,8 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
   const [err,       setErr]       = useState('');
   const [broadcast, setBroadcast] = useState<Cluster | null>(null);
   const [detailing, setDetailing] = useState<Cluster | null>(null);
+
+  const prevClusters = useRef<Cluster[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true); setErr('');
@@ -1116,13 +1124,76 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    const store = useSocialStore.getState() as any;
+    const addNotification = store?.addNotification ?? store?.addNotif ?? null;
+    if (!addNotification) return;
+
+    clusters.forEach(cl => {
+      const was = prevClusters.current.find(p => p.id === cl.id);
+      if (cl.isAlertTriggered && (!was || !was.isAlertTriggered)) {
+        addNotification({
+          id:               `auto-${cl.id}-${Date.now()}`,
+          type:             'ALERT_BROADCAST',
+          notificationType: 'ALERT_BROADCAST',
+          title:            `Auto-Alert: ${cl.dominantCategory ?? 'Incident Cluster'}`,
+          message:          `DBSCAN detected ${cl.reportCount ?? 'multiple'} reports near ${
+            cl.centerLatitude != null
+              ? `${Number(cl.centerLatitude).toFixed(4)}, ${Number(cl.centerLongitude).toFixed(4)}`
+              : 'your area'
+          }. Stay alert.`,
+          severity:  'HIGH',
+          isRead:    false,
+          createdAt: new Date().toISOString(),
+          meta: {
+            lat:       cl.centerLatitude,
+            lng:       cl.centerLongitude,
+            radius_km: PIPELINE.GEO_RADIUS_KM,
+            clusterId: cl.id,
+          },
+        });
+      }
+    });
+
+    prevClusters.current = clusters;
+  }, [clusters]);
+
   const doBroadcast = async (cluster: Cluster, severity: string, msg: string) => {
     try {
       await apiFetch(`/reports/clusters/${cluster.id}/broadcast`, {
         method: 'POST',
-        body: JSON.stringify({ severity, message: msg }),
+        body: JSON.stringify({
+          severity,
+          message:   msg,
+          latitude:  cluster.centerLatitude,
+          longitude: cluster.centerLongitude,
+          radius_km: PIPELINE.GEO_RADIUS_KM,
+        }),
       });
+
       setClusters(p => p.map(c => c.id === cluster.id ? { ...c, isAlertTriggered: true } : c));
+
+      const store = useSocialStore.getState() as any;
+      const addNotification = store?.addNotification ?? store?.addNotif ?? null;
+      if (addNotification) {
+        addNotification({
+          id:               `broadcast-${cluster.id}-${Date.now()}`,
+          type:             'ALERT_BROADCAST',
+          notificationType: 'ALERT_BROADCAST',
+          title:            `${severity} Alert · ${cluster.dominantCategory ?? 'Incident'}`,
+          message:          msg,
+          severity:         severity.toUpperCase(),
+          isRead:           false,
+          createdAt:        new Date().toISOString(),
+          meta: {
+            lat:       cluster.centerLatitude,
+            lng:       cluster.centerLongitude,
+            radius_km: PIPELINE.GEO_RADIUS_KM,
+            clusterId: cluster.id,
+          },
+        });
+      }
+
       toast('Alert broadcasted to all nearby users', 'success');
       setBroadcast(null);
       setDetailing(null);
@@ -1132,7 +1203,6 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
   if (loading) return <Spinner />;
   if (err)     return <ErrMsg msg={err} onRetry={load} />;
   if (clusters.length === 0) return <Empty msg="No active clusters detected." />;
-
   return (
     <>
       <div className="flex items-center justify-between mb-4">
@@ -1290,50 +1360,47 @@ function AlertsTab({ toast }: { toast: ToastFn }) {
 
   useEffect(() => { load(); }, [load]);
 
-  /**
-   * "Send to All Users"
-   *
-   * 1. Calls POST /reports/alerts/{id}/send-to-all
-   *    → backend creates a Notification row for every user:
-   *        notificationType = 'ALERT_BROADCAST'
-   *        title            = "Alert: <severity> <category>"
-   *        message          = alert.message
-   *
-   * 2. Immediately injects a local notification into the Zustand store
-   *    so the current admin's notification drawer updates without a refresh.
-   */
-  const sendToAll = async (alert: AlertItem) => {
-    setSendingId(alert.id);
-    try {
-      await apiFetch(`/reports/alerts/${alert.id}/send-to-all`, { method: 'POST' });
 
-      // Optimistic local injection into notification drawer
-      if (addNotification) {
-        const sev = (alert.severity ?? 'MEDIUM').toUpperCase();
-        const cat = alert.cluster?.dominantCategory ?? '';
-        addNotification({
-          id:               `local-${alert.id}-${Date.now()}`,
-          type:             'ALERT_BROADCAST',
-          notificationType: 'ALERT_BROADCAST',
-          title:            `Alert Sent: ${sev}${cat ? ` · ${cat}` : ''}`,
-          message:          alert.message ?? 'Alert has been sent to all users.',
-          severity:         sev,
-          isRead:           false,
-          createdAt:        new Date().toISOString(),
-          meta: {
-            lat: alert.cluster?.centerLatitude,
-            lng: alert.cluster?.centerLongitude,
-          },
-        });
-      }
+const sendToAll = async (alert: AlertItem) => {
+  setSendingId(alert.id);
+  try {
+    const lat = alert.cluster?.centerLatitude;
+    const lng = alert.cluster?.centerLongitude;
 
-      toast('Alert sent to all users successfully.', 'success');
-    } catch (e: any) {
-      toast(parseErr(e), 'error');
-    } finally {
-      setSendingId(null);
+    // Pass location to backend so it can filter nearby users
+    await apiFetch(`/reports/alerts/${alert.id}/send-to-all`, {
+      method: 'POST',
+      body: JSON.stringify({
+        latitude:  lat,
+        longitude: lng,
+        radius_km: PIPELINE.GEO_RADIUS_KM,   // reuse the pipeline constant
+      }),
+    });
+
+    // Optimistic local injection into notification drawer
+    if (addNotification) {
+      const sev = (alert.severity ?? 'MEDIUM').toUpperCase();
+      const cat = alert.cluster?.dominantCategory ?? '';
+      addNotification({
+        id:               `local-${alert.id}-${Date.now()}`,
+        type:             'ALERT_BROADCAST',
+        notificationType: 'ALERT_BROADCAST',
+        title:            `Alert Sent: ${sev}${cat ? ` · ${cat}` : ''}`,
+        message:          alert.message ?? 'Alert has been sent to nearby users.',
+        severity:         sev,
+        isRead:           false,
+        createdAt:        new Date().toISOString(),
+        meta: { lat, lng, radius_km: PIPELINE.GEO_RADIUS_KM },
+      });
     }
-  };
+
+    toast('Alert sent to all nearby users successfully.', 'success');
+  } catch (e: any) {
+    toast(parseErr(e), 'error');
+  } finally {
+    setSendingId(null);
+  }
+};
 
   if (loading) return <Spinner />;
   if (err)     return <ErrMsg msg={err} onRetry={load} />;
@@ -1427,7 +1494,6 @@ function AlertsTab({ toast }: { toast: ToastFn }) {
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function ReportsPage({ toast }: { toast: ToastFn }) {
   const [tab,      setTab]      = useState<TabKey>('overview');
