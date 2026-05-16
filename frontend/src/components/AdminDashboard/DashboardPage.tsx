@@ -12,9 +12,7 @@ interface DashboardPageProps {
 /** Robustly extract a count from any API response shape */
 function extractCount(val: any): number {
   if (val === null || val === undefined) return 0;
-  // paginated: { count: N, results: [...] }
   if (typeof val.count === 'number') return val.count;
-  // overview endpoint: { totalReports: N, ... }
   if (typeof val.totalReports === 'number') return val.totalReports;
   if (typeof val.total_reports === 'number') return val.total_reports;
   // flat array
@@ -39,7 +37,7 @@ export function DashboardPage({ onNav }: DashboardPageProps) {
         apiFetch('/auth/guides'),
         apiFetch('/auth/guides/pending'),
         apiFetch('/socials/posts'),
-        // try overview first (has totalReports), fall back to paginated list
+        
         apiFetch('/reports/overview').catch(() => apiFetch('/reports/?page_size=1')),
         apiFetch('/destinations'),
       ]);

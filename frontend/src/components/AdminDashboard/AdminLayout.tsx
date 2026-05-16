@@ -22,7 +22,6 @@ const NAV_ITEMS: { id: AdminPage; label: string; icon: any }[] = [
   { id: 'destinations', label: 'Destinations', icon: MapPin          },
 ];
 
-// ─── Hamburger icon ───────────────────────────────────────────────────────────
 function Hamburger() {
   return (
     <div className="space-y-1">
@@ -33,7 +32,6 @@ function Hamburger() {
   );
 }
 
-// ─── Sidebar nav links ────────────────────────────────────────────────────────
 function SidebarNav({
   page,
   onSetPage,
@@ -111,7 +109,7 @@ function SidebarNav({
   );
 }
 
-// ─── Admin Layout ─────────────────────────────────────────────────────────────
+//  Admin Layout 
 export function AdminLayout({ page, onSetPage, onLogout, userName, userPhoto, children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const currentLabel = NAV_ITEMS.find(n => n.id === page)?.label ?? '';
@@ -129,7 +127,7 @@ export function AdminLayout({ page, onSetPage, onLogout, userName, userPhoto, ch
         <SidebarNav page={page} onSetPage={onSetPage} onClose={() => {}} onLogout={onLogout} userName={userName} userPhoto={userPhoto} />
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
+
       <AnimatePresence>
         {sidebarOpen && (
           <>
