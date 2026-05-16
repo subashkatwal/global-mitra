@@ -76,8 +76,14 @@ class GuideProfile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
 
-    licenseNumber = models.CharField(max_length=100,unique=True,help_text="Official guide license number (format varies in Nepal)",default='PENDING-001')
-    address = models.CharField(max_length=255, blank=True, null=True, help_text="Full address including city, district, country")
+    licenseNumber = models.CharField(
+    max_length=100,
+    null=True,           
+    blank=True,
+    unique=True,        
+    help_text="Official guide license number (format varies in Nepal)"
+)
+    
 
     licenseIssuedBy = models.CharField(max_length=150,help_text="e.g. Nepal Tourism Board", default='Nepal Tourism Board', )
     verificationStatus = models.CharField(max_length=20,choices=VERIFICATION_STATUS,default='PENDING')
