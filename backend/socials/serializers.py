@@ -5,6 +5,7 @@ from .models import Post, Comment, Bookmark, Share
 
 class CommentSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
+    userId = serializers.UUIDField(source="user.id", read_only=True)
     userPhoto = serializers.SerializerMethodField()
     postId = serializers.UUIDField(source="post.id", read_only=True)
     likeCount = serializers.SerializerMethodField()
@@ -14,6 +15,7 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = [
             "id",
+            "userId",
             "postId",
             "full_name",
             "userPhoto",
@@ -25,6 +27,7 @@ class CommentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "userId",
             "postId",
             "full_name",
             "userPhoto",
@@ -39,7 +42,10 @@ class CommentSerializer(serializers.ModelSerializer):
             return None
         full_name = obj.user.get_full_name()
         return full_name.strip() if full_name and full_name.strip() else obj.user.email
-
+    @extend_schema_field(serializers.CharField())
+    def get_userId(self, obj):
+        return str(obj.user.id)
+    
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_userPhoto(self, obj):
         if not obj.user:
@@ -68,6 +74,8 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
+    author = serializers.SerializerMethodField()
+    userId = serializers.UUIDField(source="user.id", read_only=True)
     image = serializers.ImageField(required=False, allow_null=True)
     full_name = serializers.SerializerMethodField()
     userPhoto = serializers.SerializerMethodField()
@@ -81,10 +89,13 @@ class PostSerializer(serializers.ModelSerializer):
         model = Post
         fields = [
             "id",
+            "userId",
             "full_name",
             "userPhoto",
             "textContent",
             "image",
+            "author", 
+            "visibility", 
             "commentCount",
             "likeCount",
             "shareCount",
@@ -94,6 +105,7 @@ class PostSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "userId",
             "full_name",
             "userPhoto",
             "commentCount",
@@ -110,7 +122,11 @@ class PostSerializer(serializers.ModelSerializer):
             return None
         full_name = obj.user.get_full_name()
         return full_name.strip() if full_name and full_name.strip() else obj.user.email
-
+    
+    @extend_schema_field(serializers.CharField())
+    def get_userId(self, obj):
+        return str(obj.user.id)
+    
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_userPhoto(self, obj):
         if not obj.user:
@@ -151,7 +167,22 @@ class PostSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             return obj.likedBy.filter(pk=request.user.pk).exists()
         return False
-
+    @extend_schema_field(serializers.DictField())
+    def get_author(self, obj):
+        request = self.context.get("request")
+        photo_url = None
+        if hasattr(obj.user, "photo") and obj.user.photo:
+            photo_url = (
+                request.build_absolute_uri(obj.user.photo.url)
+                if request else obj.user.photo.url
+            )
+        return {
+            "id": str(obj.user.id),
+            "full_name": self.get_full_name(obj),
+            "photo": photo_url,
+            "username": obj.user.username,
+        }
+        
     def create(self, validated_data):
         request = self.context.get("request")
         return Post.objects.create(user=request.user, **validated_data)

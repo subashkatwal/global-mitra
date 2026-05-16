@@ -10,10 +10,20 @@ class Post(models.Model):
         on_delete=models.CASCADE,
         related_name='posts'
     )
+    VISIBILITY_CHOICES = [
+        ('public', 'Public'),
+        ('guides_only', 'Guides Only'),
+        ('private', 'Private'),
+    ]
     image = models.ImageField(upload_to="posts/images/", null=True, blank=True)
     textContent = models.TextField()
     createdAt = models.DateTimeField(auto_now_add=True)
     updatedAt = models.DateTimeField(auto_now=True)
+    visibility = models.CharField(
+        max_length=20,
+        choices=VISIBILITY_CHOICES,
+        default='public'
+    )
     likedBy = models.ManyToManyField(
     settings.AUTH_USER_MODEL,
     related_name='likedPosts',
