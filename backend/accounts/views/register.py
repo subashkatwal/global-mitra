@@ -168,9 +168,7 @@ class VerifyRegistrationOTPView(generics.GenericAPIView):
             response_data["message"] = "Email verified successfully! You can now login."
             
         else:
-            # ── GUIDE: issue tokens so they can hit /profile/complete/guide ──
-            # Account is still inactive (pending admin approval) but they need
-            # a valid JWT to submit their license details.
+
             refresh = RefreshToken.for_user(user)
             response_data["tokens"] = {
                 "access":  str(refresh.access_token),
