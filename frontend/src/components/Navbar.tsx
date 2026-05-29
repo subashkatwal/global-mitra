@@ -44,6 +44,7 @@ export function Navbar({
 
   const resolvePhoto = (photo: string | null | undefined): string | null => {
     if (!photo) return null;
+    if (photo.startsWith('blob:')) return photo; 
     if (photo.startsWith('http')) return photo;
     return `${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${photo}`;
   };

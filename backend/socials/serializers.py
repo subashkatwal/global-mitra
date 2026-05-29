@@ -41,7 +41,7 @@ class CommentSerializer(serializers.ModelSerializer):
         if not obj.user:
             return None
         full_name = obj.user.get_full_name()
-        return full_name.strip() if full_name and full_name.strip() else obj.user.email
+        return full_name.strip() if full_name and full_name.strip() else obj.user.username
     @extend_schema_field(serializers.CharField())
     def get_userId(self, obj):
         return str(obj.user.id)

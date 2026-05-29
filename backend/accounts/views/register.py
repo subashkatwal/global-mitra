@@ -337,7 +337,7 @@ class LoginView(generics.GenericAPIView):
 
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
-        userData = UserSerializer(user).data
+        userData = UserSerializer(user, context={'request': request}).data
         return Response({
             "success": True,
             "message": "Login successful",
@@ -404,7 +404,7 @@ class CurrentUserView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
+        serializer = UserSerializer(request.user, context={'request': request})
         return Response({
             "success": True,
             "user": serializer.data

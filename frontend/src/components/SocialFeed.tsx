@@ -116,6 +116,7 @@ function timeAgo(iso: string): string {
 function authorName(item: Post | Comment): string {
   const a = (item as Post).author;
   const candidates = [
+     (item as any).full_name, 
     a?.full_name,
     a?.fullName,
     a?.name,
@@ -138,6 +139,7 @@ function authorName(item: Post | Comment): string {
 function authorPhoto(item: Post | Comment): string | null {
   const a = (item as Post).author;
   const candidates = [
+    (item as any).userPhoto,
     a?.photo,
     a?.avatar,
     a?.profilePhoto,

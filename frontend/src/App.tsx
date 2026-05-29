@@ -49,7 +49,7 @@ function App() {
   const [isNotificationsOpen,     setIsNotificationsOpen]     = useState(false);
 
   const { isAuthenticated, user } = useAuthStore();
-  const { comparisonList, removeFromComparison, clearComparison } = usePlaceStore();
+  const { comparisonList, removeFromComparison, clearComparison , addToComparison } = usePlaceStore();
   const unreadCount               = useSocialStore((state) => state.getUnreadCount());
 
   const handleDestinationClick = (destinationId: string) => {
@@ -212,12 +212,13 @@ function App() {
               transition={{ duration: 0.3 }} className="pt-[60px] sm:pt-[68px]">
               <ComparisonPage 
                 destinations={comparisonList}
+                availableDestinations={[]}
                 onRemove={removeFromComparison}
+                onAdd={(dest) => addToComparison(dest)}
                 onClear={clearComparison}
                 onDestinationClick={handleDestinationClick}
-                onBack={() => setCurrentView('explore')} availableDestinations={[]} onAdd={function (): void {
-                  throw new Error('Function not implemented.');
-                } }              />
+                onBack={() => setCurrentView('explore')}
+              />
             </motion.div>
           )}
 

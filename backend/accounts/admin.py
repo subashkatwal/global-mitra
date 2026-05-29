@@ -4,15 +4,52 @@ from accounts.models import User, GuideProfile, PasswordResetOTP
 # from destinations.models import Destination
 # from socials.models import Post, Comment, Bookmark, Share
 # from reports.models import IncidentReport, AlertBroadcast
-
-
+from django.utils.html import format_html
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('id','email', 'fullName', 'role', 'is_active', 'is_staff', 'is_superuser','verified')
+    list_display = ('id', 'email', 'fullName', 'role', 'photo_preview', 'is_active', 'is_staff', 'is_superuser', 'verified')
     list_filter = ('role', 'is_staff', 'is_superuser', 'is_active')
-    search_fields = ('id','email', 'fullName', 'phoneNumber')
+    search_fields = ('id', 'email', 'fullName', 'phoneNumber')
     ordering = ('email',)
-    filter_horizontal = ('groups', 'user_permissions',)
+    filter_horizontal = ('groups', 'user_permissions')
+
+    fieldsets = BaseUserAdmin.fieldsets + (
+        ('Profile', {
+            'fields': ('fullName', 'phoneNumber', 'photo', 'photo_preview_detail', 'address', 'role', 'verified', 'isActive'),
+        }),
+    )
+
+    add_fieldsets = BaseUserAdmin.add_fieldsets + (
+        ('Profile', {
+            'fields': ('fullName', 'phoneNumber', 'photo', 'address', 'role'),
+        }),
+    )
+
+    readonly_fields = ('photo_preview_detail',)
+
+    def photo_preview(self, obj):
+        if obj.photo:
+            return format_html(
+                '<img src="{}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #e5e7eb;" />',
+                obj.photo.url
+            )
+        return format_html(
+            '<div style="width:36px;height:36px;border-radius:50%;background:#6366f1;'
+            'display:flex;align-items:center;justify-content:center;'
+            'color:white;font-weight:bold;font-size:14px;">{}</div>',
+            (obj.fullName or obj.email or '?')[0].upper()
+        )
+    photo_preview.short_description = 'Photo'
+
+    def photo_preview_detail(self, obj):
+        if obj.photo:
+            return format_html(
+                '<img src="{}" style="width:100px;height:100px;border-radius:12px;object-fit:cover;border:2px solid #e5e7eb;" />'
+                '<p style="margin-top:6px;font-size:12px;color:#6b7280;">Current photo — upload a new one below to replace it.</p>',
+                obj.photo.url
+            )
+        return format_html('<p style="color:#9ca3af;font-size:12px;">No photo uploaded yet.</p>')
+    photo_preview_detail.short_description = 'Current Photo'
 
 @admin.register(GuideProfile)
 class GuideProfileAdmin(admin.ModelAdmin):

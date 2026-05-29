@@ -82,7 +82,7 @@ class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_permissions(self):
         if self.request.method == "GET":
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated(), IsOwnerOrReadOnly(),IsAdminOrReadOnly()]
+        return [permissions.IsAuthenticated(), IsOwnerOrReadOnly()]
 
     def get_serializer_context(self):
         return {"request": self.request}
