@@ -22,6 +22,7 @@ class GuideProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User details"""
+    photo = serializers.SerializerMethodField() 
     guideProfile = GuideProfileSerializer(read_only=True)
     
     class Meta:
@@ -40,6 +41,14 @@ class UserSerializer(serializers.ModelSerializer):
             'guideProfile'
         ]
         read_only_fields = ['id', 'verified', 'isActive', 'createdAt', 'updatedAt']
+        
+    def get_photo(self, obj):
+        if not obj.photo:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.photo.url)
+        return obj.photo.url
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):

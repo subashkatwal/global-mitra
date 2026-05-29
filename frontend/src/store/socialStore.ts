@@ -71,7 +71,7 @@ interface SocialState {
   addNotification:          (notification: any) => void;
   markNotificationRead:     (notificationId: string) => void;
   markAllNotificationsRead: () => void;
-  clearAllNotifications:    () => void;
+  clearAllNotifications: () => Promise<void>;
   getUnreadCount:           () => number;
 }
 
@@ -138,7 +138,20 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     markAllNotificationsReadOnAPI();
   },
 
-  clearAllNotifications: () => set({ notifications: [] }),
+  clearAllNotifications: async () => {
+  const { notifications } = get();
+  // optimistic clear
+  set({ notifications: [] });
+  // delete each from backend
+  await Promise.allSettled(
+    notifications.map(n =>
+      fetch(`/api/v1/reports/notifications/${n.id}`, {
+        method: 'DELETE',
+        headers: { ...getAuthHeaders() },
+      })
+    )
+  );
+},
 
   getUnreadCount: () => get().notifications.filter(n => !n.isRead).length,
 }));

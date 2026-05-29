@@ -53,7 +53,7 @@ class UpdateUserProfileSerializer(serializers.ModelSerializer):
     Allows updating: fullName, phoneNumber, address.
     Photo is intentionally excluded — use POST /profile/users/me/photo instead.
     """
-
+    photo = serializers.ImageField(required=False, allow_null=True)
     phoneNumber = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -70,7 +70,7 @@ class UpdateUserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["fullName", "phoneNumber", "address"]
+        fields = ["fullName", "phoneNumber", "address","photo"]
 
     def validate_phoneNumber(self, value):
         if not value:
@@ -79,6 +79,14 @@ class UpdateUserProfileSerializer(serializers.ModelSerializer):
         if User.objects.exclude(id=user.id).filter(phoneNumber=value).exists():
             raise serializers.ValidationError("This phone number is already in use.")
         return value
+    def update(self, instance, validated_data):
+        # Delete old photo before replacing
+        if "photo" in validated_data and instance.photo:
+            try:
+                instance.photo.delete(save=False)
+            except Exception:
+                pass
+        return super().update(instance, validated_data),
 
 
 class GuideProfileDetailSerializer(serializers.ModelSerializer):

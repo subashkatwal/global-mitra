@@ -62,6 +62,7 @@ export function AvatarUpload({ photoUrl, fullName, size = 96, onUploaded }: Avat
         body:   formData,
   
       }) as any;
+      console.log('upload response:', res);
 
       const newUrl = res?.photo ?? res?.data?.photo ?? objectUrl;
 

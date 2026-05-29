@@ -411,10 +411,28 @@ export function ExplorePage({ onDestinationClick }: { onDestinationClick: (id: s
                     canCompare={comparisonList.length < 4}
                     onSave={() => toggleSavePlace(dest.id)}
                     onCompare={() => {
-                      if (!comparisonList.some(p => p.id === dest.id) && comparisonList.length < 4) {
-                        addToComparison(dest as any);
-                      }
-                    }}
+  if (!comparisonList.some(p => p.id === dest.id) && comparisonList.length < 4) {
+    addToComparison({
+      id:           dest.id,
+      name:         dest.name,
+      region:       dest.district,
+      image:        dest.image ?? '',
+      rating:       0,
+      difficulty:   dest.difficulty,
+      duration:     dest.duration,
+      costPerDay:   Number(dest.averageCost),
+      bestSeason:   dest.bestSeason,
+      altitude:     String(dest.altitude ?? ''),
+      weather:      dest.climate ?? '',
+      crowdLevel:   dest.crowdLevel as any,
+      wifi:         dest.internetAvailability !== 'None',
+      safetyRating: 0,
+      highlights:   dest.activities ?? [],
+      permits:      dest.permitsRequired ? ['Permit required'] : [],
+      tags:         [],
+    });
+  }
+}}
                   />
                 </motion.div>
               ))}
@@ -488,7 +506,6 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
   );
 }
 
-// ── DestinationCard ───────────────────────────────────────────────────────────
 
 interface CardProps {
   destination: BackendDestination;

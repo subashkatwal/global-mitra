@@ -142,23 +142,28 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
   // ── Save edits ─────────────────────────────────────────────────────────────
   const handleSave = async () => {
-    setSaving(true); setEditErr('');
-    try {
-      const body: Record<string, string> = {};
-      if (draftName.trim())  body.fullName    = draftName.trim();
-      if (draftPhone.trim()) body.phoneNumber = draftPhone.trim();
-      if (draftAddr.trim())  body.address     = draftAddr.trim();
+  setSaving(true); setEditErr('');
+  try {
+    const body: Record<string, string> = {};
+    if (draftName.trim())  body.fullName    = draftName.trim();
+    if (draftPhone.trim()) body.phoneNumber = draftPhone.trim();
+    if (draftAddr.trim())  body.address     = draftAddr.trim();
 
-      const res     = await apiFetch('/profile/users/me', { method: 'PATCH', body: JSON.stringify(body) }) as any;
-      const updated = res?.data ?? res?.user ?? res;
-      setProfile(updated);
-      setUser({ ...authUser!, ...updated });
-      setEditing(false);
-      flash('Profile updated!');
-    } catch (e: any) {
-      setEditErr(parseError(e));
-    } finally { setSaving(false); }
-  };
+    const res = await apiFetch('/profile/users/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },  // ← add this
+      body: JSON.stringify(body),
+    }) as any;
+
+    const updated = res?.data ?? res?.user ?? res;
+    setProfile(updated);
+    setUser({ ...authUser!, ...updated });
+    setEditing(false);
+    flash('Profile updated!');
+  } catch (e: any) {
+    setEditErr(parseError(e));
+  } finally { setSaving(false); }
+};
 
   const handleCancel = () => {
     if (profile) resetDrafts(profile);

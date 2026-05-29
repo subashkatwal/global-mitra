@@ -125,8 +125,6 @@ interface Overview {
   weeklyChange?:     number;
 }
 
-// ─── Normalizers ─────────────────────────────────────────────────────────────
-
 function normReport(r: any): Report {
   return {
     id:              r.id,
@@ -211,8 +209,6 @@ function normOverview(raw: any): Overview {
   };
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function timeAgo(iso?: string): string {
   if (!iso) return '—';
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -255,7 +251,6 @@ function shortClsId(id: string): string {
   return `cls-${id.replace(/-/g, '').slice(-3).toUpperCase()}`;
 }
 
-// ─── Shared UI atoms ─────────────────────────────────────────────────────────
 
 function CatPill({ cat }: { cat?: string }) {
   const c = catCfg(cat);
@@ -308,8 +303,6 @@ function StatCard({ label, value, sub, accent, icon: Icon }:
     </div>
   );
 }
-
-// ─── Cluster Details Modal ────────────────────────────────────────────────────
 
 function ClusterDetailsModal({ cluster, onClose, onBroadcast }:
   { cluster: Cluster; onClose: () => void; onBroadcast: () => void }) {
@@ -502,8 +495,6 @@ function ClusterDetailsModal({ cluster, onClose, onBroadcast }:
   );
 }
 
-// ─── Report Detail Modal ──────────────────────────────────────────────────────
-
 function ReportDetailModal({ report, onClose, onVerify, onReject }:
   { report: Report; onClose: () => void; onVerify: () => void; onReject: () => void }) {
 
@@ -643,9 +634,6 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
     </motion.div>
   );
 }
-
-// ─── Broadcast Modal ──────────────────────────────────────────────────────────
-
 function BroadcastModal({ cluster, onClose, onBroadcast }:
   { cluster: Cluster; onClose: () => void; onBroadcast: (sev: string, msg: string) => Promise<void> }) {
 
@@ -721,11 +709,8 @@ function BroadcastModal({ cluster, onClose, onBroadcast }:
   );
 }
 
-// ─── Tab types ────────────────────────────────────────────────────────────────
 
 type TabKey = 'overview' | 'reports' | 'clusters' | 'alerts';
-
-// ─── Overview Tab ─────────────────────────────────────────────────────────────
 
 function OverviewTab({ data, onTabSwitch }:
   { data: Overview | null; onTabSwitch: (t: TabKey) => void }) {
@@ -893,8 +878,6 @@ function RecentPendingCard({ onViewAll }: { onViewAll: () => void }) {
     </div>
   );
 }
-
-// ─── Reports Tab ──────────────────────────────────────────────────────────────
 
 function ReportsTab({ toast }: { toast: ToastFn }) {
   const [reports,      setReports]      = useState<Report[]>([]);
@@ -1333,8 +1316,6 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
     </>
   );
 }
-
-// ─── Alerts Tab ───────────────────────────────────────────────────────────────
 
 function AlertsTab({ toast }: { toast: ToastFn }) {
   const [alerts,    setAlerts]    = useState<AlertItem[]>([]);
