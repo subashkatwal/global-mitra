@@ -1,6 +1,6 @@
 
 
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import { usePlaceStore } from '@/store/placeStore';
@@ -29,6 +29,7 @@ import { ProfilePage }          from '@/components/ProfilePage';
 import { GuideProfilePage }     from '@/components/GuideProfilePage';
 import { GuideDashboardPage }   from '@/components/GuideDashboardPage';
 import AdminDashboardPage       from '@/components/AdminDashboard';
+import { startNotificationPolling,stopNotificationPolling  } from '@/store/socialStore';
 import type { Destination } from './types';
 
 export type View =
@@ -49,6 +50,13 @@ function App() {
   const [isNotificationsOpen,     setIsNotificationsOpen]     = useState(false);
 
   const { isAuthenticated, user } = useAuthStore();
+  useEffect(() => {
+  if (isAuthenticated) {
+    startNotificationPolling();
+  } else {
+    stopNotificationPolling();
+  }
+}, [isAuthenticated]);
   const { comparisonList, removeFromComparison, clearComparison , addToComparison } = usePlaceStore();
   const unreadCount               = useSocialStore((state) => state.getUnreadCount());
 
