@@ -4,12 +4,11 @@
 # Run each section independently to understand how the pipeline behaves
 # =============================================================================
 
-import io, os, math, json, warnings
+import math
+import warnings
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import seaborn as sns
 from datetime import datetime, timedelta
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -76,7 +75,7 @@ def run_pipeline(
         stop_words='english',
         ngram_range=ngram_range,
         min_df=1,
-        max_df=0.95,
+        max_df=1.0,
         sublinear_tf=True
     )
     tfidf   = vec.fit_transform(df_f['description'].tolist())
