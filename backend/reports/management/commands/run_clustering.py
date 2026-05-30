@@ -26,7 +26,7 @@ class Command(BaseCommand):
         cutoff = timezone.now() - timedelta(hours=window_hours)
         
         reports = IncidentReport.objects.filter(
-            created_at__gte=cutoff,
+            createdAt__gte=cutoff,
             status__in=['PENDING', 'VERIFIED', 'AUTO_ALERTED']
         ).select_related('user')
         

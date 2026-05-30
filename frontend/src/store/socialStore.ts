@@ -155,3 +155,21 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   getUnreadCount: () => get().notifications.filter(n => !n.isRead).length,
 }));
+
+let _pollInterval: ReturnType<typeof setInterval> | null = null;
+
+export function startNotificationPolling() {
+  if (_pollInterval) return; // already running
+  _pollInterval = setInterval(() => {
+    const token = localStorage.getItem('access_token') ?? localStorage.getItem('token');
+    if (!token) return;
+    useSocialStore.getState().fetchNotifications();
+  }, 30_000); // every 30 seconds
+}
+
+export function stopNotificationPolling() {
+  if (_pollInterval) {
+    clearInterval(_pollInterval);
+    _pollInterval = null;
+  }
+}

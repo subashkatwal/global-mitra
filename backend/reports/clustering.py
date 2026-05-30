@@ -5,7 +5,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import DBSCAN
 from typing import List, Dict, Any
-from reports.models import  IncidentCluster
+from reports.models import IncidentCluster
 
 TIME_WINDOW_HOURS = 3
 GEO_RADIUS_KM = 3.0
@@ -111,9 +111,8 @@ def run_clustering_pipeline(reports_queryset) -> List[Dict[str, Any]]:
     ).fit_predict(dist_matrix)
 
     clusters = []
-    unique_labels = set(labels)
 
-    for cluster_label in sorted(unique_labels):
+    for cluster_label in sorted(set(labels)):
         if cluster_label == -1:
             continue
 
@@ -121,21 +120,17 @@ def run_clustering_pipeline(reports_queryset) -> List[Dict[str, Any]]:
         if len(idxs) < MIN_CLUSTER_REPORTS:
             continue
 
-        c_reps = [
-            (lats[i], lons[i], descriptions[i], roles[i], categories[i]) for i in idxs
-        ]
-        n_rep = len(c_reps)
-
-        c_lat = sum(lats[i] for i in idxs) / len(idxs)
-        c_lon = sum(lons[i] for i in idxs) / len(idxs)
-
+        n_rep = len(idxs)
+        c_lat = sum(lats[i] for i in idxs) / n_rep
+        c_lon = sum(lons[i] for i in idxs) / n_rep
         dominant_cat = Counter(categories[i] for i in idxs).most_common(1)[0][0]
         n_guides = sum(1 for i in idxs if roles[i] == "GUIDE")
         guide_ratio = n_guides / n_rep
+
         confidence = round(min(0.7, n_rep / 10) + guide_ratio * 0.3, 4)
+
         keywords = get_top_keywords(descriptions, idxs)
         severity = severity_from_confidence(confidence)
-
         report_ids = [reports[i].id for i in idxs]
 
         clusters.append(
@@ -155,40 +150,116 @@ def run_clustering_pipeline(reports_queryset) -> List[Dict[str, Any]]:
 
 
 def save_clusters_to_db(cluster_data_list: List[Dict]) -> List[IncidentCluster]:
+    from reports.models import IncidentReport, AlertBroadcast, Notification
+    from accounts.models import User
+
     created_clusters = []
 
     for data in cluster_data_list:
-        cluster = IncidentCluster.objects.create(
-            center_latitude=data["center_latitude"],
-            center_longitude=data["center_longitude"],
-            dominant_category=data["dominant_category"],
-            confidence_score=data["confidence_score"],
-            top_keywords=data["top_keywords"],
-            is_alert_triggered=data["confidence_score"] >= 0.7
-            and data["report_count"] >= 3,
+        # Skip if cluster already exists at this location
+        existing = IncidentCluster.objects.filter(
+            centerLatitude__range=(
+                data["center_latitude"] - 0.001,
+                data["center_latitude"] + 0.001,
+            ),
+            centerLongitude__range=(
+                data["center_longitude"] - 0.001,
+                data["center_longitude"] + 0.001,
+            ),
+            dominantCategory=data["dominant_category"],
+        ).first()
+        if existing:
+            continue
+
+        report_ids = data["report_ids"]
+        reports_qs = IncidentReport.objects.filter(id__in=report_ids).select_related(
+            "user"
         )
 
-        cluster.reports.set(data["report_ids"])
+        # ── Check condition: at least 3 TOURIST reports + 1 GUIDE report ──
+        tourist_count = sum(
+            1 for r in reports_qs if getattr(r.user, "role", "TOURIST") == "TOURIST"
+        )
+        guide_count = sum(
+            1
+            for r in reports_qs
+            if getattr(r.user, "role", "TOURIST") != "TOURIST"
+            and getattr(r.user, "role", "TOURIST") == "GUIDE"
+        )
+
+        if tourist_count < 3 or guide_count < 1:
+            continue  # condition not met, skip this cluster
+
+        cluster = IncidentCluster.objects.create(
+            centerLatitude=data["center_latitude"],
+            centerLongitude=data["center_longitude"],
+            dominantCategory=data["dominant_category"],
+            confidenceScore=data["confidence_score"],
+            topKeywords=data["top_keywords"],
+            isAlertTriggered=True,
+        )
+        cluster.reports.set(report_ids)
         created_clusters.append(cluster)
 
-        if cluster.is_alert_triggered:
-            from reports.models import AlertBroadcast, Notification
+        # Mark all reports AUTO_ALERTED
+        IncidentReport.objects.filter(id__in=report_ids).update(
+            status="AUTO_ALERTED",
+            confidenceScore=data["confidence_score"],
+        )
 
-            alert = AlertBroadcast.objects.create(
-                cluster=cluster,
-                message=f"Auto-alert: {data['dominant_category']} incident detected with {data['severity']} severity.",
-                severity=data["severity"],
-                trigger_type="AUTO",
-                broadcasted_by=None,
+        alert = AlertBroadcast.objects.create(
+            cluster=cluster,
+            message=(
+                f"⚠️ {data['dominant_category'].replace('_', ' ').title()} alert near your location. "
+                f"Severity: {data['severity']}. Reported by {data['report_count']} users."
+            ),
+            severity=data["severity"],
+            triggerType="AUTO",
+            broadcastedBy=None,
+        )
+
+        title = f"⚠️ {data['dominant_category'].replace('_', ' ').title()} Alert Nearby"
+
+        # ── Notify ALL users within GEO_RADIUS_KM of the cluster center ──
+        nearby_users = _get_nearby_users(
+            data["center_latitude"],
+            data["center_longitude"],
+            radius_km=GEO_RADIUS_KM,
+        )
+
+        notified_ids = set()
+        for user in nearby_users:
+            if user.id in notified_ids:
+                continue
+            notified_ids.add(user.id)
+            Notification.objects.create(
+                recipient=user,
+                notificationType="AUTO_ALERT",
+                title=title,
+                message=alert.message,
+                incidentReport=reports_qs.first(),
             )
 
-            for report in cluster.reports.all():
-                Notification.objects.create(
-                    recipient=report.user,
-                    notification_type="AUTO_ALERT",
-                    title=f"Alert: {data['dominant_category'].replace('_', ' ').title()}",
-                    message=alert.message,
-                    incident_report=report,
-                )
-
     return created_clusters
+
+
+def _get_nearby_users(center_lat, center_lon, radius_km):
+    """
+    Returns all users whose last known location is within radius_km.
+    Falls back to notifying report authors only if no location data exists.
+    """
+    from accounts.models import User
+    from reports.models import IncidentReport
+
+    # Get users who have submitted any report near this cluster
+    all_reports = IncidentReport.objects.select_related("user").all()
+    nearby_users = []
+    seen = set()
+    for report in all_reports:
+        if report.user_id in seen:
+            continue
+        dist = haversine_km(center_lat, center_lon, report.latitude, report.longitude)
+        if dist <= radius_km:
+            nearby_users.append(report.user)
+            seen.add(report.user_id)
+    return nearby_users
