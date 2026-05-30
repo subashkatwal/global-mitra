@@ -1,15 +1,3 @@
-# incidents/signals.py
-"""
-post_save on IncidentReport → run_clustering()
-
-The signal fires every time a new IncidentReport row is inserted.
-Only NEW reports trigger clustering (created=True guard).
-
-For high-volume production, swap the direct call for a Celery task:
-    from incidents.tasks import run_clustering_task
-    run_clustering_task.delay()
-"""
-
 import logging
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -17,36 +5,33 @@ from django.dispatch import receiver
 logger = logging.getLogger(__name__)
 
 
-@receiver(post_save, sender='reports.IncidentReport')
+@receiver(post_save, sender="reports.IncidentReport")
 def trigger_clustering_on_new_report(sender, instance, created, **kwargs):
-    """
-    Only runs on INSERT (created=True).
-    Status updates (e.g. admin VERIFIED/REJECTED) do NOT re-trigger clustering.
-    """
     if not created:
         return
 
-    logger.info(
-        'IncidentReport %s created by user %s — triggering clustering.',
-        instance.id,
-        instance.user_id,
-    )
+    logger.info("IncidentReport %s created — triggering clustering.", instance.id)
 
     try:
-        from reports.clustering import run_clustering
-        result = run_clustering()
+        from django.utils import timezone
+        from datetime import timedelta
+        from reports.models import IncidentReport
+        from reports.clustering import run_clustering_pipeline, save_clusters_to_db
 
-        if result.get('skipped'):
-            logger.info('Clustering skipped: %s', result.get('reason'))
-        else:
-            logger.info(
-                'Clustering done — %d cluster(s) created, %d noise points.',
-                len(result.get('clusters_created', [])),
-                result.get('noise_count', 0),
-            )
+        cutoff = timezone.now() - timedelta(hours=3)
+        reports = IncidentReport.objects.filter(
+            createdAt__gte=cutoff, status__in=["PENDING", "VERIFIED"]
+        ).select_related("user")
+
+        if reports.count() < 3:
+            logger.info("Clustering skipped: fewer than 3 reports in window.")
+            return
+
+        clusters = run_clustering_pipeline(reports)
+        created_clusters = save_clusters_to_db(clusters)
+        logger.info("Clustering done — %d cluster(s) created.", len(created_clusters))
 
     except Exception as exc:
-        # Never crash the HTTP request because clustering failed
         logger.exception(
-            'Clustering failed after IncidentReport %s: %s', instance.id, exc
+            "Clustering failed after IncidentReport %s: %s", instance.id, exc
         )
