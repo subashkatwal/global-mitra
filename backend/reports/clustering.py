@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 from reports.models import IncidentCluster
 
 TIME_WINDOW_HOURS = 3
-GEO_RADIUS_KM = 3.0
+GEO_RADIUS_KM = 10
 MIN_CLUSTER_REPORTS = 3
 DBSCAN_EPS = 0.82
 DBSCAN_MIN_SAMPLES = 3
@@ -44,7 +44,7 @@ def build_cosine_matrix(descriptions, roles):
         stop_words="english",
         ngram_range=(1, 1),
         min_df=1,
-        max_df=0.95,
+        max_df=1.0,
         sublinear_tf=True,
     )
     tfidf = vec.fit_transform(descriptions)
@@ -180,12 +180,7 @@ def save_clusters_to_db(cluster_data_list: List[Dict]) -> List[IncidentCluster]:
         tourist_count = sum(
             1 for r in reports_qs if getattr(r.user, "role", "TOURIST") == "TOURIST"
         )
-        guide_count = sum(
-            1
-            for r in reports_qs
-            if getattr(r.user, "role", "TOURIST") != "TOURIST"
-            and getattr(r.user, "role", "TOURIST") == "GUIDE"
-        )
+        guide_count = sum(1 for r in reports_qs if getattr(r.user, "role", "") == "GUIDE")
 
         if tourist_count < 3 or guide_count < 1:
             continue  # condition not met, skip this cluster

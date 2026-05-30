@@ -101,12 +101,12 @@ CLUSTER_AUTO_BROADCAST_THRESHOLD = 5
 DBSCAN_EPS = 0.5        # max distance between reports to be in same cluster
 DBSCAN_MIN_SAMPLES = 3   # minimum reports to form a cluster
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
-    }
-}
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+#         'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+#     }
+# }
 
 ROOT_URLCONF = 'globalmitra.urls'
 
