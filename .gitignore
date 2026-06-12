@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Virtual environments and local env files
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+
+# Django local/runtime files
+*.sqlite3
+backend/media/
+backend/staticfiles/
+backend/gunicorn.ctl
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+
+# Archives and logs
+frontend.zip
+*.log
+
+# Local notebook duplicates/checkpoints
+.ipynb_checkpoints/
+* (2).ipynb
