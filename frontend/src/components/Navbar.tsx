@@ -13,14 +13,14 @@ interface NavbarProps {
   onLoginClick: () => void;
   onSignupClick: () => void;
   unreadNotifications: number;
-  comparisonCount: number;
-  onComparisonClick: () => void;
+  // comparisonCount: number;
+  // onComparisonClick: () => void;
   onNotificationsClick: () => void;
 }
 
 export function Navbar({
   currentView, onNavigate, onLoginClick, onSignupClick,
-  unreadNotifications, comparisonCount, onComparisonClick, onNotificationsClick
+  unreadNotifications, /* comparisonCount, onComparisonClick, */ onNotificationsClick
 }: NavbarProps) {
   const [isScrolled,       setIsScrolled]       = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -58,7 +58,7 @@ export function Navbar({
   const roleLabel         = isAdmin ? 'Admin' : isGuide ? 'Guide' : null;
 
   
-  const isOnCompare = currentView === 'compare';
+  // const isOnCompare = currentView === 'compare';
 
   const navLinks: { id: View; label: string; icon: React.ElementType }[] = [
     { id: 'home',      label: 'Home',      icon: Home   },
@@ -141,7 +141,7 @@ export function Navbar({
             <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
 
               {/* Compare button — navigates to 'compare' view via onComparisonClick */}
-              <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
+              {/* <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
                 onClick={onComparisonClick}
                 className={`hidden xl:flex items-center gap-1.5 px-3 py-2 rounded-lg border text-[12px] font-semibold transition-colors relative whitespace-nowrap ${
                   isOnCompare
@@ -154,7 +154,7 @@ export function Navbar({
                     {comparisonCount}
                   </span>
                 )}
-              </motion.button>
+              </motion.button> */}
 
               {/* Bell */}
               {isAuthenticated && (
@@ -264,7 +264,7 @@ export function Navbar({
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-[#E63946] hover:bg-red-50">
                   <AlertTriangle className="w-4 h-4" />Report Incidents
                 </button>
-                <button onClick={() => { onComparisonClick(); setIsMobileMenuOpen(false); }}
+                {/* <button onClick={() => { onComparisonClick(); setIsMobileMenuOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                     isOnCompare ? 'bg-[#3CA37A] text-white' : 'text-[#1A3D2B] hover:bg-[#D0F0E4]'
                   }`}>
@@ -274,7 +274,7 @@ export function Navbar({
                       {comparisonCount}
                     </span>
                   )}
-                </button>
+                </button> */}
                 {isAuthenticated && (
                   <button
                     onClick={() => { onNavigate(profileView); setIsMobileMenuOpen(false); }}

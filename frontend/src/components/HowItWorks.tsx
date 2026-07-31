@@ -39,7 +39,7 @@ const steps = [
   }
 ];
 
-type View = 'home' | 'explore' | 'destination' | 'community' | 'profile' | 'guide' | 'dashboard' | 'admin' | 'compare' | 'notifications' | 'report';
+type View = 'home' | 'explore' | 'destination' | 'community' | 'profile' | 'guide' | 'dashboard' | 'admin' | /* 'compare' | */ 'notifications' | 'report';
 
 interface HowItWorksProps {
   onNavigate: (view: View) => void;

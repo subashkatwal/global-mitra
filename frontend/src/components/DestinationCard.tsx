@@ -1,7 +1,7 @@
 
-import { MapPin, Star, Clock, DollarSign, Plus, CheckCircle, BarChart3 } from 'lucide-react';
+import { MapPin, Star, Clock, DollarSign } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useComparisonStore } from '../stores/comparisonStore';
+// import { useComparisonStore } from '../stores/comparisonStore';
 
 interface Destination {
   id: string;
@@ -17,13 +17,13 @@ interface Destination {
 
 interface DestinationCardProps {
   destination: Destination;
-  showCompare?: boolean;
+  // showCompare?: boolean;
 }
 
-export function DestinationCard({ destination, showCompare = true }: DestinationCardProps) {
-  const { isSelected, toggleComparison, canAddMore } = useComparisonStore();
-  const selected = isSelected(destination.id);
-  const canAdd = canAddMore() || selected;
+export function DestinationCard({ destination}: DestinationCardProps) {
+  // const { isSelected, toggleComparison, canAddMore }
+  // const selected = isSelected(destination.id);
+  // const canAdd = canAddMore() || selected;
 
   return (
     <div className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100">
@@ -35,34 +35,8 @@ export function DestinationCard({ destination, showCompare = true }: Destination
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        
-        {/* Compare Button - Top Right */}
-        {showCompare && (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!selected && !canAddMore()) {
-                alert('You can compare up to 5 destinations at once');
-                return;
-              }
-              toggleComparison(destination);
-            }}
-            className={`absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-lg ${
-              selected
-                ? 'bg-[#3CA37A] text-white'
-                : canAdd
-                ? 'bg-white/90 text-[#1A3D2B] hover:bg-white'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {selected ? (
-              <><CheckCircle className="w-3.5 h-3.5" /> Added</>
-            ) : (
-              <><Plus className="w-3.5 h-3.5" /> Compare</>
-            )}
-          </button>
-        )}
+      
+       
 
         {/* Title Overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-4">

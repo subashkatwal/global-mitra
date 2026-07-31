@@ -116,10 +116,10 @@ export function PlaceDetails({
   const [error, setError] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
 
-  const { savedPlaces, toggleSavePlace, addToComparison, comparisonList } =
-    usePlaceStore();
+  const { savedPlaces, toggleSavePlace } = usePlaceStore();
+  // const { addToComparison, comparisonList } = usePlaceStore();
   const isSaved = savedPlaces.includes(placeId);
-  const isInComparison = comparisonList.some((p) => p.id === placeId);
+  // const isInComparison = comparisonList.some((p) => p.id === placeId);
 
   useEffect(() => {
     setIsLoading(true);
@@ -135,29 +135,29 @@ export function PlaceDetails({
       .finally(() => setIsLoading(false));
   }, [placeId]);
 
-  const handleAddToComparison = (d: FullDestination) => {
-    if (!isInComparison && comparisonList.length < 4) {
-      addToComparison({
-        id: d.id,
-        name: d.name,
-        region: d.district,
-        image: d.image ?? "",
-        rating: 0,
-        difficulty: d.difficulty as any,
-        duration: d.duration,
-        costPerDay: Number(d.averageCost),
-        bestSeason: d.bestSeason,
-        altitude: String(d.altitude ?? ""),
-        weather: d.climate ?? "",
-        crowdLevel: d.crowdLevel as any,
-        wifi: d.internetAvailability !== "None",
-        safetyRating: 0,
-        highlights: d.activities ?? [],
-        permits: d.permitsRequired ? ["Permit required"] : [],
-        tags: [],
-      });
-    }
-  };
+  // const handleAddToComparison = (d: FullDestination) => {
+  //   if (!isInComparison && comparisonList.length < 4) {
+  //     addToComparison({
+  //       id: d.id,
+  //       name: d.name,
+  //       region: d.district,
+  //       image: d.image ?? "",
+  //       rating: 0,
+  //       difficulty: d.difficulty as any,
+  //       duration: d.duration,
+  //       costPerDay: Number(d.averageCost),
+  //       bestSeason: d.bestSeason,
+  //       altitude: String(d.altitude ?? ""),
+  //       weather: d.climate ?? "",
+  //       crowdLevel: d.crowdLevel as any,
+  //       wifi: d.internetAvailability !== "None",
+  //       safetyRating: 0,
+  //       highlights: d.activities ?? [],
+  //       permits: d.permitsRequired ? ["Permit required"] : [],
+  //       tags: [],
+  //     });
+  //   }
+  // };
 
   if (isLoading) {
     return (
@@ -227,7 +227,7 @@ export function PlaceDetails({
           <button className="p-2 rounded-lg border border-gray-200 text-gray-400 hover:border-gray-300 transition-colors">
             <Share2 className="w-4 h-4" />
           </button>
-          <button
+          {/* <button
             onClick={() => handleAddToComparison(d)}
             disabled={isInComparison || comparisonList.length >= 4}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
@@ -240,7 +240,7 @@ export function PlaceDetails({
           >
             <BarChart3 className="w-4 h-4" />
             {isInComparison ? "Added" : "+ Add to Compare"}
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -511,7 +511,7 @@ export function PlaceDetails({
             </motion.div>
 
             {/* Add to Compare */}
-            <motion.button
+            {/* <motion.button
               initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.35, delay: 0.2 }}
@@ -527,7 +527,7 @@ export function PlaceDetails({
             >
               <BarChart3 className="w-4 h-4" />
               {isInComparison ? "Added to Compare" : "+ Add to Compare"}
-            </motion.button>
+            </motion.button> */}
           </div>
         </div>
       </div>
