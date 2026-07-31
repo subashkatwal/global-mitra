@@ -142,7 +142,8 @@ export function ExplorePage({ onDestinationClick }: { onDestinationClick: (id: s
   const [showFilters,  setShowFilters]  = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { savedPlaces, toggleSavePlace, addToComparison, comparisonList } = usePlaceStore();
+  const { savedPlaces, toggleSavePlace } = usePlaceStore();
+  // const { addToComparison, comparisonList } = usePlaceStore();
 
   const PAGE_SIZE  = 12;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -407,32 +408,32 @@ export function ExplorePage({ onDestinationClick }: { onDestinationClick: (id: s
                     destination={dest}
                     onClick={() => onDestinationClick(dest.id)}
                     isSaved={savedPlaces.includes(dest.id)}
-                    isInComparison={comparisonList.some(p => p.id === dest.id)}
-                    canCompare={comparisonList.length < 4}
+                    // isInComparison={comparisonList.some(p => p.id === dest.id)}
+                    // canCompare={comparisonList.length < 4}
                     onSave={() => toggleSavePlace(dest.id)}
-                    onCompare={() => {
-  if (!comparisonList.some(p => p.id === dest.id) && comparisonList.length < 4) {
-    addToComparison({
-      id:           dest.id,
-      name:         dest.name,
-      region:       dest.district,
-      image:        dest.image ?? '',
-      rating:       0,
-      difficulty:   dest.difficulty,
-      duration:     dest.duration,
-      costPerDay:   Number(dest.averageCost),
-      bestSeason:   dest.bestSeason,
-      altitude:     String(dest.altitude ?? ''),
-      weather:      dest.climate ?? '',
-      crowdLevel:   dest.crowdLevel as any,
-      wifi:         dest.internetAvailability !== 'None',
-      safetyRating: 0,
-      highlights:   dest.activities ?? [],
-      permits:      dest.permitsRequired ? ['Permit required'] : [],
-      tags:         [],
-    });
-  }
-}}
+                    // onCompare={() => {
+  // if (!comparisonList.some(p => p.id === dest.id) && comparisonList.length < 4) {
+  //   addToComparison({
+  //     id:           dest.id,
+  //     name:         dest.name,
+  //     region:       dest.district,
+  //     image:        dest.image ?? '',
+  //     rating:       0,
+  //     difficulty:   dest.difficulty,
+  //     duration:     dest.duration,
+  //     costPerDay:   Number(dest.averageCost),
+  //     bestSeason:   dest.bestSeason,
+  //     altitude:     String(dest.altitude ?? ''),
+  //     weather:      dest.climate ?? '',
+  //     crowdLevel:   dest.crowdLevel as any,
+  //     wifi:         dest.internetAvailability !== 'None',
+  //     safetyRating: 0,
+  //     highlights:   dest.activities ?? [],
+  //     permits:      dest.permitsRequired ? ['Permit required'] : [],
+  //     tags:         [],
+  //   });
+  // }
+// }}
                   />
                 </motion.div>
               ))}
@@ -511,13 +512,14 @@ interface CardProps {
   destination: BackendDestination;
   onClick: () => void;
   isSaved: boolean;
-  isInComparison: boolean;
-  canCompare: boolean;
+  // isInComparison: boolean;
+  // canCompare: boolean;
   onSave: () => void;
-  onCompare: () => void;
+  // onCompare: () => void;
 }
 
-function DestinationCard({ destination, onClick, isSaved, isInComparison, canCompare, onSave, onCompare }: CardProps) {
+function DestinationCard({ destination, onClick, isSaved, onSave }: CardProps) {
+  // const { isInComparison, canCompare, onCompare } = {} as any;
   const [imgError, setImgError] = useState(false);
 
   return (
@@ -616,7 +618,7 @@ function DestinationCard({ destination, onClick, isSaved, isInComparison, canCom
             <Clock className="w-3 h-3" />
             <span>{destination.duration || 'Flexible'}</span>
           </div>
-          <button onClick={e => { e.stopPropagation(); onCompare(); }}
+          {/* <button onClick={e => { e.stopPropagation(); onCompare(); }}
             disabled={isInComparison || !canCompare}
             className={`text-xs font-semibold transition-colors ${
               isInComparison ? 'text-blue-500'
@@ -624,7 +626,7 @@ function DestinationCard({ destination, onClick, isSaved, isInComparison, canCom
               : 'text-[#3CA37A] hover:text-[#1A3D2B]'
             }`}>
             {isInComparison ? '✓ Added' : 'Compare'}
-          </button>
+          </button> */}
         </div>
       </div>
     </div>

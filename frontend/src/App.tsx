@@ -1,5 +1,3 @@
-
-
 import { useState,useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
@@ -17,8 +15,6 @@ import { Footer }               from '@/components/Footer';
 import LoginModal               from '@/components/LoginModal';
 import SignupModal              from '@/components/SignupModal';
 import ProfileCompletionModal   from '@/components/ProfileCompletionModal';
-import { ComparisonDrawer }     from '@/components/ComparisonDrawer';
-import { ComparisonPage }       from '@/components/ComparisonPage'; // NEW: Full page
 // import { ReportModal }          from '@/components/ReportModal';
 import { ReportPage }           from '@/components/ReportPage';
 import { SocialFeed }           from '@/components/SocialFeed';
@@ -36,7 +32,7 @@ export type View =
   | 'home' | 'explore' | 'destination' | 'community'
   | 'profile' | 'guide' | 'dashboard'
   | 'admin'
-  | 'compare'
+  // | 'compare'
   | 'notifications' | 'report';
 
 function App() {
@@ -46,7 +42,7 @@ function App() {
   const [isSignupOpen,            setIsSignupOpen]            = useState(false);
   const [isProfileCompletionOpen, setIsProfileCompletionOpen] = useState(false);
   const [isReportOpen,            setIsReportOpen]            = useState(false);
-  const [isComparisonOpen,        setIsComparisonOpen]        = useState(false);
+  // const [isComparisonOpen,        setIsComparisonOpen]        = useState(false);
   const [isNotificationsOpen,     setIsNotificationsOpen]     = useState(false);
 
   const { isAuthenticated, user } = useAuthStore();
@@ -57,7 +53,7 @@ function App() {
     stopNotificationPolling();
   }
 }, [isAuthenticated]);
-  const { comparisonList, removeFromComparison, clearComparison , addToComparison } = usePlaceStore();
+  // const { comparisonList, removeFromComparison, clearComparison , addToComparison } = usePlaceStore();
   const unreadCount               = useSocialStore((state) => state.getUnreadCount());
 
   const handleDestinationClick = (destinationId: string) => {
@@ -66,17 +62,17 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // NEW: Handle comparison navigation - opens drawer if < 2 items, else goes to full page
-  const handleComparisonClick = () => {
-    if (comparisonList.length >= 2) {
-      // Navigate to full comparison page
-      setCurrentView('compare');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      // Open drawer to add more destinations
-      setIsComparisonOpen(true);
-    }
-  };
+
+  // const handleComparisonClick = () => {
+  //   if (comparisonList.length >= 2) {
+  //     // Navigate to full comparison page
+  //     setCurrentView('compare');
+  //     window.scrollTo({ top: 0, behavior: 'smooth' });
+  //   } else {
+  //     // Open drawer to add more destinations
+  //     setIsComparisonOpen(true);
+  //   }
+  // };
 
   const handleNavigate = (view: View) => {
     // Guard profile, guide, dashboard, admin — must be logged in
@@ -109,8 +105,8 @@ function App() {
         onLoginClick={() => setIsLoginOpen(true)}
         onSignupClick={() => setIsSignupOpen(true)}
         unreadNotifications={unreadCount}
-        comparisonCount={comparisonList.length}
-        onComparisonClick={handleComparisonClick} // NEW: Updated handler
+        // comparisonCount={comparisonList.length}
+        // onComparisonClick={handleComparisonClick} // NEW: Updated handler
         onNotificationsClick={() => setIsNotificationsOpen(true)}
       />
 
@@ -214,7 +210,7 @@ function App() {
           )}
 
   
-          {currentView === 'compare' && (
+          {/* {currentView === 'compare' && (
             <motion.div key="compare"
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }} className="pt-[60px] sm:pt-[68px]">
@@ -228,7 +224,7 @@ function App() {
                 onBack={() => setCurrentView('explore')}
               />
             </motion.div>
-          )}
+          )} */}
 
         </AnimatePresence>
       </main>
@@ -253,11 +249,11 @@ function App() {
       />
 
       {/* Comparison Drawer - for adding destinations when < 2 selected */}
-      <ComparisonDrawer
+      {/* <ComparisonDrawer
         isOpen={isComparisonOpen}
         onClose={() => setIsComparisonOpen(false)}
         onPlaceClick={handleDestinationClick}
-      />
+      /> */}
       
       <NotificationsPanel
         isOpen={isNotificationsOpen}

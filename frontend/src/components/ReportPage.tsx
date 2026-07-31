@@ -495,7 +495,7 @@ export function ReportPage({ isOpen, onClose, placeId }: ReportPageProps) {
                 )}
 
                 {/* Category */}
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-900">Incident Category <span className="text-red-500">*</span></label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {CATEGORIES.map((cat) => {
@@ -514,7 +514,7 @@ export function ReportPage({ isOpen, onClose, placeId }: ReportPageProps) {
                     })}
                   </div>
                   {fieldErrs.category && <p className="text-xs text-red-600">{fieldErrs.category}</p>}
-                </div>
+                </div> */}
 
                 {/* Description */}
                 <div className="space-y-2">

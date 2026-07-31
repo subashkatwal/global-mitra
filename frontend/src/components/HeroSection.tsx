@@ -121,6 +121,7 @@ export function HeroSection({ onExploreClick, onPlaceClick }: HeroSectionProps) 
                 className="font-heading text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-4 sm:mb-6"
               >
                 Discover the World Through{' '}
+                
                 <span className="bg-gradient-to-r from-[#FF6B35] to-[#F7B801] bg-clip-text text-transparent">
                   Trusted Travelers
                 </span>
@@ -168,25 +169,7 @@ export function HeroSection({ onExploreClick, onPlaceClick }: HeroSectionProps) 
               </motion.div>
 
               {/* Trust counters */}
-              <motion.div
-                initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
-                className="flex flex-wrap gap-6 sm:gap-8"
-              >
-                <div>
-                  <div className="text-2xl sm:text-3xl font-bold text-[#FF6B35]">{counters.travelers.toLocaleString()}+</div>
-                  <div className="text-xs sm:text-sm text-white/70">Travelers</div>
-                </div>
-                <div>
-                  <div className="text-2xl sm:text-3xl font-bold text-[#F7B801]">{counters.places.toLocaleString()}+</div>
-                  <div className="text-xs sm:text-sm text-white/70">Verified Places</div>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1 text-2xl sm:text-3xl font-bold text-[#2ECC71]">
-                    {counters.rating}<Star className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
-                  </div>
-                  <div className="text-xs sm:text-sm text-white/70">Average Rating</div>
-                </div>
-              </motion.div>
+            
             </div>
 
             {/* Right — 3 floating destination cards from API */}
