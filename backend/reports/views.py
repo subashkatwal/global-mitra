@@ -175,8 +175,6 @@ class ReportVerifyView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # An admin verification is a deliberate override: create a one-report
-        # alert without running the DBSCAN / TF-IDF clustering pipeline.
         with transaction.atomic():
             report.status = "VERIFIED"
             report.verifiedBy = request.user
