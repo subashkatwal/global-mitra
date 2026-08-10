@@ -51,6 +51,7 @@ function normalizeNotification(n: any): any {
     meta:             n.meta ?? null,
     latitude:         n.latitude  ?? null,
     longitude:        n.longitude ?? null,
+    incidentReport:   n.incidentReport ?? n.incident_report ?? null,
   };
 }
 

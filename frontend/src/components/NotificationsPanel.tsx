@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, CheckCircle, XCircle, User, Heart, MessageCircle,
@@ -52,6 +52,7 @@ function timeAgo(date?: Date | string): string {
 }
 
 export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps) {
+  const [selectedNotification, setSelectedNotification] = useState<any>(null);
   const {
     notifications,
     notificationsLoading,
@@ -139,7 +140,10 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
                       <motion.div key={notification.id}
                         initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.03 }}
-                        onClick={() => markNotificationRead(notification.id)}
+                        onClick={() => {
+                          markNotificationRead(notification.id);
+                          setSelectedNotification(notification);
+                        }}
                         className={`px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer relative ${isUnread ? 'bg-blue-50/30' : ''}`}>
 
                         {isUnread && (
@@ -200,9 +204,97 @@ export function NotificationsPanel({ isOpen, onClose }: NotificationsPanelProps)
                 </div>
               )}
             </div>
+
+            <AnimatePresence>
+              {selectedNotification && (
+                <NotificationDetailCard
+                  notification={selectedNotification}
+                  onClose={() => setSelectedNotification(null)}
+                />
+              )}
+            </AnimatePresence>
           </motion.div>
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+function NotificationDetailCard({ notification, onClose }:
+  { notification: any; onClose: () => void }) {
+  const report = notification.incidentReport ?? notification.incident_report;
+  const type = notification.notificationType ?? notification.type ?? '';
+  const Icon = ICON_MAP[type] ?? Bell;
+  const accent = COLOR_MAP[type] ?? '#6B7280';
+  const image = report?.image;
+  const reporter = report?.authorName ?? report?.author_name ?? report?.reporterName;
+  const lat = report?.latitude ?? notification.meta?.lat ?? notification.latitude;
+  const lng = report?.longitude ?? notification.meta?.lng ?? notification.longitude;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4"
+      onClick={onClose}>
+      <motion.article
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 12 }}
+        className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={event => event.stopPropagation()}>
+        <div className="flex items-start gap-3 border-b border-gray-100 p-5">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+            style={{ background: `${accent}18` }}>
+            <Icon className="h-5 w-5" style={{ color: accent }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: accent }}>
+              Notification details
+            </p>
+            <h3 className="mt-0.5 text-lg font-bold text-gray-950">{notification.title}</h3>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="max-h-[75vh] space-y-4 overflow-y-auto p-5">
+          {image && (
+            <img src={image} alt="Incident evidence" className="max-h-72 w-full rounded-xl object-cover" />
+          )}
+
+          <p className="text-sm leading-6 text-gray-700">{notification.message}</p>
+
+          {report?.description && (
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Report description</p>
+              <p className="text-sm leading-6 text-gray-700">{report.description}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {report?.category && (
+              <DetailItem label="Category" value={String(report.category).replaceAll('_', ' ')} />
+            )}
+            {reporter && <DetailItem label="Reported by" value={reporter} />}
+            {lat != null && lng != null && (
+              <DetailItem label="Location" value={`${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`} />
+            )}
+            <DetailItem label="Received" value={new Date(notification.createdAt).toLocaleString()} />
+          </div>
+        </div>
+      </motion.article>
+    </motion.div>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-white p-3">
+      <p className="text-xs font-semibold text-gray-500">{label}</p>
+      <p className="mt-1 text-sm font-medium capitalize text-gray-800">{value}</p>
+    </div>
   );
 }
