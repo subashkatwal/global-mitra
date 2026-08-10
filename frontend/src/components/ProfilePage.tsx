@@ -79,7 +79,7 @@ function DeleteModal({ onConfirm, onCancel, loading }: {
   );
 }
 
-// ── Role badge config — Admin / Guide / Traveler ──────────────────────────────
+// ── Role badge config - Admin / Guide / Traveler ──────────────────────────────
 const ROLE_BADGE: Record<string, { label: string; className: string }> = {
   GUIDE:   { label: 'Guide',    className: 'bg-[#D8F3DC] text-[#1B4332]'  },
   ADMIN:   { label: 'Admin',    className: 'bg-purple-100 text-purple-700' },

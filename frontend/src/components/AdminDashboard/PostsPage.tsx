@@ -38,7 +38,7 @@ function resolveAuthorName(post: Post): string {
   for (const c of candidates) {
     if (c && typeof c === 'string' && c.trim() && !c.includes('@')) return c.trim();
   }
-  return '—';
+  return '-';
 }
 function resolveAuthorEmail(post: Post): string {
   return post.author?.email ?? (post as any).email ?? '';
@@ -71,7 +71,7 @@ function shortId(id: string): string {
 function AuthorAvatar({ photo, name, size = 10 }: { photo?: string | null; name: string; size?: number }) {
   const [imgErr, setImgErr] = useState(false);
   const sz = `w-${size} h-${size}`;
-  const initial = (name && name !== '—') ? name.charAt(0).toUpperCase() : '?';
+  const initial = (name && name !== '-') ? name.charAt(0).toUpperCase() : '?';
   if (photo && !imgErr) {
     return (
       <img src={photo} alt={name}
@@ -305,7 +305,7 @@ function PostFormModal({ post, onClose, onSaved }: {
         />
       </FormField>
 
-      {/* Image upload — shown for both Add and Edit */}
+      {/* Image upload - shown for both Add and Edit */}
       <div className="mt-4">
         <ImageUploadField
           preview={imagePreview}

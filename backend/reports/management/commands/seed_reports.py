@@ -8,7 +8,6 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--clear', action='store_true', help='Clear existing data first')
-
     def handle(self, *args, **options):
         if options['clear']:
             Notification.objects.all().delete()
@@ -53,7 +52,7 @@ class Command(BaseCommand):
             IncidentReport(user=U["guide.pemba@gmail.com"],  description="Tourist injured Everest Base Camp altitude sickness medical evacuation helicopter",  category="MEDICAL",   latitude=27.9881, longitude=86.9250, status="PENDING"),
             IncidentReport(user=U["sita.thapa@gmail.com"],   description="Wild leopard spotted Chitwan village forest department wildlife danger warning",     category="WILDLIFE",  latitude=27.5291, longitude=84.3542, status="PENDING"),
         ])
-        self.stdout.write(f'✅ Created 12 reports — PENDING: {IncidentReport.objects.filter(status="PENDING").count()}')
+        self.stdout.write(f'✅ Created 12 reports - PENDING: {IncidentReport.objects.filter(status="PENDING").count()}')
 
         from reports.clustering import run_clustering
         result = run_clustering()

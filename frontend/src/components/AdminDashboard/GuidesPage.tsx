@@ -150,7 +150,7 @@ function GuideFormModal({ guide, onClose, onSaved }: {
     const errs: Record<string, string> = {};
     if (!form.fullName.trim())           errs.fullName        = 'Full name is required.';
     if (!guide) {
-      // Create mode — email + password required
+      // Create mode - email + password required
       if (!form.email.trim())            errs.email           = 'Email is required.';
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
                                          errs.email           = 'Enter a valid email address.';
@@ -260,7 +260,7 @@ function GuideFormModal({ guide, onClose, onSaved }: {
           <FieldErr msg={fe.photo} />
         </div>
 
-        {/* Full Name — always editable */}
+        {/* Full Name - always editable */}
         <FormField label="Full Name" req>
           <input value={form.fullName} onChange={e => set('fullName', e.target.value)}
             placeholder="Guide's full name"
@@ -269,7 +269,7 @@ function GuideFormModal({ guide, onClose, onSaved }: {
           <FieldErr msg={fe.fullName} />
         </FormField>
 
-        {/* Email — only on create */}
+        {/* Email - only on create */}
         {!guide ? (
           <FormField label="Email" req>
             <input value={form.email} onChange={e => set('email', e.target.value)}
@@ -296,7 +296,7 @@ function GuideFormModal({ guide, onClose, onSaved }: {
           <FieldErr msg={fe.phoneNumber} />
         </FormField>
 
-        {/* Password — create only */}
+        {/* Password - create only */}
         {!guide && (
           <FormField label="Password" req>
             <input value={form.password} onChange={e => set('password', e.target.value)}
@@ -307,7 +307,7 @@ function GuideFormModal({ guide, onClose, onSaved }: {
           </FormField>
         )}
 
-        {/* License Number — editable in both modes */}
+        {/* License Number - editable in both modes */}
         <FormField label="License Number" req>
           <input value={form.licenseNumber} onChange={e => set('licenseNumber', e.target.value)}
             placeholder="NTB-2024-001234"
@@ -316,7 +316,7 @@ function GuideFormModal({ guide, onClose, onSaved }: {
           <FieldErr msg={fe.licenseNumber} />
         </FormField>
 
-        {/* Issued By — editable in both modes */}
+        {/* Issued By - editable in both modes */}
         <FormField label="Issued By" req>
           <input value={form.licenseIssuedBy} onChange={e => set('licenseIssuedBy', e.target.value)}
             placeholder="Nepal Tourism Board"
@@ -375,15 +375,15 @@ function GuideDetailModal({ guide, onClose, onAction }: {
 
   const rows: [string, string][] = [
     ['Guide ID',    guide.id],
-    ['User ID',     guide.user?.id ?? '—'],
-    ['Name',        guide.user?.fullName  ?? '—'],
-    ['Email',       guide.user?.email     ?? '—'],
-    ['Phone',       guide.user?.phoneNumber ?? '—'],
-    ['License No.', guide.licenseNumber   ?? '—'],
-    ['Issued By',   guide.licenseIssuedBy ?? '—'],
+    ['User ID',     guide.user?.id ?? '-'],
+    ['Name',        guide.user?.fullName  ?? '-'],
+    ['Email',       guide.user?.email     ?? '-'],
+    ['Phone',       guide.user?.phoneNumber ?? '-'],
+    ['License No.', guide.licenseNumber   ?? '-'],
+    ['Issued By',   guide.licenseIssuedBy ?? '-'],
     ['Status',      guide.verificationStatus],
-    ['Bio',         guide.bio             ?? '—'],
-    ['Joined',      guide.createdAt ? new Date(guide.createdAt).toLocaleDateString() : '—'],
+    ['Bio',         guide.bio             ?? '-'],
+    ['Joined',      guide.createdAt ? new Date(guide.createdAt).toLocaleDateString() : '-'],
   ];
 
   const idFields = new Set(['Guide ID', 'User ID']);
@@ -408,7 +408,7 @@ function GuideDetailModal({ guide, onClose, onAction }: {
           <div key={k} className="flex items-start justify-between py-2.5 border-b last:border-0"
             style={{ borderColor: T.borderSm }}>
             <span className="text-sm font-medium flex-shrink-0 w-28 mr-4" style={{ color: T.textSub }}>{k}</span>
-            {idFields.has(k) && v !== '—'
+            {idFields.has(k) && v !== '-'
               ? <CopyId id={v} />
               : <span className="text-sm text-right break-all flex-1 text-gray-700">{v}</span>}
           </div>
@@ -576,18 +576,18 @@ export function GuidesPage({ toast }: { toast: ToastFn }) {
                   {/* Name + email */}
                   <Td>
                     <p className="font-medium text-sm" style={{ color: T.textMain }}>
-                      {g.user?.fullName || '—'}
+                      {g.user?.fullName || '-'}
                     </p>
                     {g.user?.email && (
                       <p className="text-xs" style={{ color: T.textMuted }}>{g.user.email}</p>
                     )}
                   </Td>
-                  <Td mono>{g.licenseNumber || '—'}</Td>
-                  <Td>{g.licenseIssuedBy || '—'}</Td>
+                  <Td mono>{g.licenseNumber || '-'}</Td>
+                  <Td>{g.licenseIssuedBy || '-'}</Td>
                   <Td>
                     <Badge label={g.verificationStatus} variant={statusBadge(g.verificationStatus) as any} />
                   </Td>
-                  <Td>{g.createdAt ? new Date(g.createdAt).toLocaleDateString() : '—'}</Td>
+                  <Td>{g.createdAt ? new Date(g.createdAt).toLocaleDateString() : '-'}</Td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 flex-wrap">
                       {g.verificationStatus === 'PENDING' && (

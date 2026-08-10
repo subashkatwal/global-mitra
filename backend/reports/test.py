@@ -1,7 +1,7 @@
 # # -*- coding: utf-8 -*-
 # """GlobalMitra_Django_Updated.ipynb
 
-# # 🌍 GlobalMitra — Spatio-Textual Incident Clustering (Updated)
+# # 🌍 GlobalMitra - Spatio-Textual Incident Clustering (Updated)
 # ## Tourism Safety Platform | Final Year Project
 
 # ---
@@ -17,7 +17,7 @@
 # - Flags clusters with ≥3 reports as **"Verified Incidents"**
 # - Saves results to **IncidentCluster**, triggers **AlertBroadcast**, sends **Notifications**
 
-# **Constraints:** No pretrained models, no external APIs, no deep learning — pure classical ML.
+# **Constraints:** No pretrained models, no external APIs, no deep learning - pure classical ML.
 
 # ---
 
@@ -37,7 +37,7 @@
 # |---|---|---|---|
 # | `TIME_WINDOW_HOURS` | `6` | `3` | Flash floods/road blocks resolve fast. 3h eliminates stale chatter |
 # | `DBSCAN_MIN_SAMPLES` | `2` | `3` | Aligns core-point requirement with MIN_CLUSTER_REPORTS (≥3 = Verified) |
-# | `GUIDE_WEIGHT` | `1.0` | `1.5` | Licensed local experts — guide pairs get 1.5× cosine similarity boost |
+# | `GUIDE_WEIGHT` | `1.0` | `1.5` | Licensed local experts - guide pairs get 1.5× cosine similarity boost |
 # """
 
 # # ──────────────────────────────────────────────────────────────────────────────
@@ -70,10 +70,10 @@
 # # Section 2: Data Simulation
 # # (In production: replaced by IncidentReport.objects.filter(...).select_related('user'))
 # #
-# # Design Rationale — same locations as baseline:
-# #   Cluster A (Flash Flood)   — 5 reports, Bagmati river crossing, <500 m spread
-# #   Cluster B (Broken Bridge) — 4 reports, Ring Road, ~1.5 km northwest
-# #   Noise                     — 5 unrelated reports, far away or stale
+# # Design Rationale - same locations as baseline:
+# #   Cluster A (Flash Flood)   - 5 reports, Bagmati river crossing, <500 m spread
+# #   Cluster B (Broken Bridge) - 4 reports, Ring Road, ~1.5 km northwest
+# #   Noise                     - 5 unrelated reports, far away or stale
 # #
 # # TIME_WINDOW_HOURS = 3  →  cutoff = 180 min ago
 # #   R010 (380 min), R014 (330 min) are now BOTH outside the window (same as before)
@@ -160,7 +160,7 @@
 #     },
 # ]
 
-# # NOISE REPORTS — geographically scattered, some also stale
+# # NOISE REPORTS - geographically scattered, some also stale
 # noise_reports = [
 #     {
 #         'report_id': 'R010',
@@ -236,7 +236,7 @@
 # #     After TF-IDF cosine similarity is computed, a per-pair weight matrix
 # #     is applied before running DBSCAN. Any pair involving a Guide report
 # #     is multiplied by 1.5 (capped at 1.0). Guides are licensed local
-# #     experts with higher evidentiary value — their reports should cluster
+# #     experts with higher evidentiary value - their reports should cluster
 # #     more readily with nearby reports, lowering effective EPS needed.
 # # ──────────────────────────────────────────────────────────────────────────────
 
@@ -246,7 +246,7 @@
 # MIN_CLUSTER_REPORTS = 3
 
 # # DBSCAN parameters
-# DBSCAN_EPS          = 0.62
+# DBSCAN_EPS          = 0.82
 # DBSCAN_MIN_SAMPLES  = 3      # ← was 2  (now aligned with MIN_CLUSTER_REPORTS)
 
 # # Guide credibility boost
@@ -276,7 +276,7 @@
 # # ──────────────────────────────────────────────────────────────────────────────
 
 # def haversine_km(lat1, lon1, lat2, lon2):
-#     """Great-circle distance between two GPS points — Haversine formula."""
+#     """Great-circle distance between two GPS points - Haversine formula."""
 #     R = 6371.0
 #     phi1, phi2 = math.radians(lat1), math.radians(lat2)
 #     d_phi    = math.radians(lat2 - lat1)
@@ -287,7 +287,7 @@
 
 # # Verification: Boudhanath → Pashupatinath (known ≈ 1.5 km)
 # d_test = haversine_km(27.7215, 85.3620, 27.7104, 85.3485)
-# print(f'✅ Haversine test — Boudhanath → Pashupatinath: {d_test:.3f} km (expected ~1.5 km)')
+# print(f'✅ Haversine test - Boudhanath → Pashupatinath: {d_test:.3f} km (expected ~1.5 km)')
 
 # n = len(df_filtered)
 # geo_dist_matrix = np.zeros((n, n))
@@ -315,7 +315,7 @@
 
 # print('✅ Cluster A (R001-R005): all within ~0.2 km of each other (flood zone)')
 # print('✅ Cluster B (R006-R009): ~1.5 km northwest, within ~0.3 km of each other (bridge zone)')
-# print('✅ Noise (R011-R013): 5–10 km away — geo-filter will block these from clustering')
+# print('✅ Noise (R011-R013): 5–10 km away - geo-filter will block these from clustering')
 
 # # ──────────────────────────────────────────────────────────────────────────────
 # # Section 5: TF-IDF + Cosine Similarity with Guide Credibility Boost
@@ -334,17 +334,17 @@
 # #   cosine_distance(i,j) = 1 − weighted_sim(i,j)
 # #   A Guide–Tourist pair with raw sim=0.45 (dist=0.55) becomes:
 # #   sim_weighted = min(0.45 × 1.5, 1.0) = 0.675  →  dist = 0.325
-# #   This is well inside EPS=0.62, making them mutual neighbours.
+# #   This is well inside EPS=0.82, making them mutual neighbours.
 # #
 # # Rationale:
 # #   Guides are licensed local experts. Their reports carry higher evidentiary
 # #   value. A cluster with even one Guide report reaches the Verified threshold
-# #   more readily — correct behaviour for a safety platform in remote terrain.
+# #   more readily - correct behaviour for a safety platform in remote terrain.
 # # ──────────────────────────────────────────────────────────────────────────────
 
 # vectorizer = TfidfVectorizer(
 #     stop_words='english',
-#     ngram_range=(1, 1),    # Unigrams only — critical (see baseline notes)
+#     ngram_range=(1, 1),    # Unigrams only - critical (see baseline notes)
 #     min_df=1,
 #     max_df=0.95,
 #     sublinear_tf=True,
@@ -380,7 +380,7 @@
 # ids = df_filtered['report_id'].tolist()
 # print('\n=== SIMILARITY DIAGNOSTICS (weighted) ===')
 
-# print('\nWithin Cluster A (R001-R005 — Flood) — should be HIGH (>0.35):')
+# print('\nWithin Cluster A (R001-R005 - Flood) - should be HIGH (>0.35):')
 # cluster_a_idx = [i for i, r in enumerate(ids) if r in ['R001','R002','R003','R004','R005']]
 # for ii, i in enumerate(cluster_a_idx):
 #     for j in cluster_a_idx[ii+1:]:
@@ -390,7 +390,7 @@
 #         boost = f'(raw={raw:.3f} → weighted={wtd:.3f})' if abs(wtd - raw) > 0.001 else f'(={wtd:.3f})'
 #         print(f'  {ok} {ids[i]} ({roles[i]}) vs {ids[j]} ({roles[j]}): {boost}')
 
-# print('\nWithin Cluster B (R006-R009 — Bridge) — should be HIGH (>0.35):')
+# print('\nWithin Cluster B (R006-R009 - Bridge) - should be HIGH (>0.35):')
 # cluster_b_idx = [i for i, r in enumerate(ids) if r in ['R006','R007','R008','R009']]
 # for ii, i in enumerate(cluster_b_idx):
 #     for j in cluster_b_idx[ii+1:]:
@@ -400,7 +400,7 @@
 #         boost = f'(raw={raw:.3f} → weighted={wtd:.3f})' if abs(wtd - raw) > 0.001 else f'(={wtd:.3f})'
 #         print(f'  {ok} {ids[i]} ({roles[i]}) vs {ids[j]} ({roles[j]}): {boost}')
 
-# print(f'\nCross-cluster A vs B — should be LOW (<0.15):')
+# print(f'\nCross-cluster A vs B - should be LOW (<0.15):')
 # for i in cluster_a_idx[:2]:
 #     for j in cluster_b_idx[:2]:
 #         sim = cos_sim_weighted[i, j]
@@ -481,13 +481,13 @@
 # #   ✅ All within TIME_WINDOW_HOURS (enforced during preprocessing)
 # #
 # # With DBSCAN_MIN_SAMPLES=3, every core point already has ≥3 neighbours,
-# # so every discovered cluster automatically qualifies — the two thresholds
+# # so every discovered cluster automatically qualifies - the two thresholds
 # # are now aligned. Previously (min_samples=2), a noisy pair could form a
 # # cluster that never reached 3 reports.
 # # ──────────────────────────────────────────────────────────────────────────────
 
 # print('═' * 62)
-# print('  GLOBALMITRA — CLUSTER ANALYSIS REPORT (UPDATED)')
+# print('  GLOBALMITRA - CLUSTER ANALYSIS REPORT (UPDATED)')
 # print('═' * 62)
 # print(f'  Time window   : Last {TIME_WINDOW_HOURS}h  (↓ from 6h)')
 # print(f'  Geo radius    : {GEO_RADIUS_KM} km')
@@ -545,12 +545,12 @@
 # cluster_colors     = {-1: '#999999', 0: '#E63946', 1: '#2A9D8F', 2: '#F4A261'}
 # cluster_labels_map = {
 #     -1: 'Noise (unrelated)',
-#      0: 'Cluster 0 — Flash Flood',
-#      1: 'Cluster 1 — Broken Bridge',
+#      0: 'Cluster 0 - Flash Flood',
+#      1: 'Cluster 1 - Broken Bridge',
 # }
 # markers = {'Tourist': 'o', 'Guide': 's'}
 
-# # ── FIGURE 1: GPS Scatter — coloured by cluster ───────────────────────────────
+# # ── FIGURE 1: GPS Scatter - coloured by cluster ───────────────────────────────
 # fig, ax = plt.subplots(figsize=(11, 8))
 # legend_handles = []
 
@@ -608,7 +608,7 @@
 # ax.set_xlabel('Longitude', fontsize=11)
 # ax.set_ylabel('Latitude',  fontsize=11)
 # ax.set_title(
-#     f'GlobalMitra — Spatio-Textual Clustering  '
+#     f'GlobalMitra - Spatio-Textual Clustering  '
 #     f'({TIME_WINDOW_HOURS}h window | Guide {GUIDE_WEIGHT}× | min_samples={DBSCAN_MIN_SAMPLES})\n'
 #     'DBSCAN · TF-IDF Unigrams · Haversine Geo-filter · Boudhanath, Kathmandu',
 #     fontsize=12, fontweight='bold',
@@ -647,14 +647,14 @@
 # axes[1].legend(title='User Role', fontsize=9)
 
 # plt.suptitle(
-#     f'GlobalMitra — Cluster Composition  '
+#     f'GlobalMitra - Cluster Composition  '
 #     f'({TIME_WINDOW_HOURS}h window | Guide {GUIDE_WEIGHT}× | min_samples={DBSCAN_MIN_SAMPLES})',
 #     fontsize=13, fontweight='bold', y=1.02,
 # )
 # plt.tight_layout()
 # plt.show()
 
-# # ── FIGURE 3: Cosine similarity sorted by cluster — shows block structure ─────
+# # ── FIGURE 3: Cosine similarity sorted by cluster - shows block structure ─────
 # fig, ax = plt.subplots(figsize=(10, 8))
 
 # sorted_idx      = df_filtered.sort_values('cluster').index.tolist()
@@ -688,7 +688,7 @@
 # print('✅ Clear block structure: cluster members show high mutual similarity')
 # print(f'   Guide rows/cols visibly brighter due to {GUIDE_WEIGHT}× credibility boost')
 
-# # ── FIGURE 4: Guide weight effect — raw vs weighted similarity comparison ──────
+# # ── FIGURE 4: Guide weight effect - raw vs weighted similarity comparison ──────
 # fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
 # # Left: raw similarity
@@ -705,7 +705,7 @@
 #             annot=True, fmt='.2f', cmap='Blues', vmin=0, vmax=1,
 #             linewidths=0.4, ax=axes[1],
 #             cbar_kws={'label': f'Weighted Cosine Similarity (Guide ×{GUIDE_WEIGHT})'})
-# axes[1].set_title(f'Weighted Cosine Similarity\n(Guide pairs ×{GUIDE_WEIGHT} — capped at 1.0)',
+# axes[1].set_title(f'Weighted Cosine Similarity\n(Guide pairs ×{GUIDE_WEIGHT} - capped at 1.0)',
 #                   fontsize=12, fontweight='bold')
 
 # # Annotate guide rows
@@ -722,7 +722,7 @@
 #                 label.set_fontweight('bold')
 
 # plt.suptitle(
-#     f'Guide Credibility Boost Effect — Raw vs Weighted (×{GUIDE_WEIGHT})\n'
+#     f'Guide Credibility Boost Effect - Raw vs Weighted (×{GUIDE_WEIGHT})\n'
 #     'Purple labels = Guide reports | Brighter cells = boosted similarity',
 #     fontsize=13, fontweight='bold', y=1.02,
 # )
@@ -745,7 +745,7 @@
 # # ──────────────────────────────────────────────────────────────────────────────
 
 # print('\n╔' + '═' * 62 + '╗')
-# print('║   🌍 GLOBALMITRA — FINAL INCIDENT ALERT SUMMARY (UPDATED)  ║')
+# print('║   🌍 GLOBALMITRA - FINAL INCIDENT ALERT SUMMARY (UPDATED)  ║')
 # print('╠' + '═' * 62 + '╣')
 # print(f'║  Total reports (raw)         : {len(df):<5}                        ║')
 # print(f'║  After {TIME_WINDOW_HOURS}h time filter       : {len(df_filtered):<5} (removed {len(df)-len(df_filtered)} stale)      ║')
@@ -763,7 +763,7 @@
 #     ids_   = ', '.join(c_df['report_id'].tolist())
 #     name   = incident_names_final.get(cid, f'Incident {cid}')
 #     guides = c_df[c_df['user_role'] == 'Guide']['report_id'].tolist()
-#     print(f'║  Cluster {cid} [{status}] — {name:<23} ║')
+#     print(f'║  Cluster {cid} [{status}] - {name:<23} ║')
 #     print(f'║    Reports : {ids_:<49}║')
 #     print(f'║    Guides  : {str(guides):<49}║')
 #     print('╟' + '─' * 62 + '╢')

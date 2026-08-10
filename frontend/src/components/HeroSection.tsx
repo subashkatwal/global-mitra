@@ -76,7 +76,7 @@ export function HeroSection({ onExploreClick, onPlaceClick }: HeroSectionProps) 
         }));
         setHeroDestinations(items);
       })
-      .catch(() => {/* silently fail — hero still renders */});
+      .catch(() => {/* silently fail - hero still renders */});
   }, []);
 
   // Floating card positions (index 0, 1, 2)
@@ -131,7 +131,7 @@ export function HeroSection({ onExploreClick, onPlaceClick }: HeroSectionProps) 
                 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
                 className="text-base sm:text-lg text-white/80 mb-6 sm:mb-8 max-w-xl"
               >
-                Join 50,000+ adventurers sharing real-time experiences, verified by our global community of local guides.
+                Join  adventurers sharing real-time experiences, verified by our global community of local guides.
               </motion.p>
 
               {/* Search */}
@@ -172,7 +172,7 @@ export function HeroSection({ onExploreClick, onPlaceClick }: HeroSectionProps) 
             
             </div>
 
-            {/* Right — 3 floating destination cards from API */}
+            {/* Right - 3 floating destination cards from API */}
             <motion.div
               initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.5, duration: 0.8 }}

@@ -116,7 +116,7 @@ export function DashboardPage({ onNav }: DashboardPageProps) {
               <p className="text-3xl font-bold" style={{ color: T.textMain }}>
                 {loading
                   ? <span className="inline-block w-8 h-7 bg-gray-100 rounded animate-pulse" />
-                  : (stats?.[c.key] ?? '—')}
+                  : (stats?.[c.key] ?? '-')}
               </p>
             </motion.button>
           );

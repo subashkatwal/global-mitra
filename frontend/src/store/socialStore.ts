@@ -51,6 +51,7 @@ function normalizeNotification(n: any): any {
     meta:             n.meta ?? null,
     latitude:         n.latitude  ?? null,
     longitude:        n.longitude ?? null,
+    incidentReport:   n.incidentReport ?? n.incident_report ?? null,
   };
 }
 
@@ -95,7 +96,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     posts: state.posts.filter(p => p.id !== postId),
   })),
 
-  // Optimistic bookmark toggle — uses your exact Post type fields
+  // Optimistic bookmark toggle - uses your exact Post type fields
   bookmarkPost: (postId) => set(state => ({
     posts: state.posts.map(p =>
       p.id === postId

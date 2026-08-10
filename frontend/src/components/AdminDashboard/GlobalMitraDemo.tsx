@@ -1,13 +1,13 @@
 // /**
-//  * GlobalMitra — DBSCAN Clustering Demo
+//  * GlobalMitra - DBSCAN Clustering Demo
 //  * Hardcoded Kathmandu incident data · Full pipeline visualization
 //  * Mirrors globalmitra_algorithm.py exactly
 //  *
 //  * Shows:
 //  *  1. All 14 raw reports on a scatter plot (by GPS)
-//  *  2. After time filter (3h window) — which reports survive
+//  *  2. After time filter (3h window) - which reports survive
 //  *  3. Cosine similarity heatmap (guide-weighted)
-//  *  4. DBSCAN cluster output — Cluster A (Flood), Cluster B (Bridge), Noise
+//  *  4. DBSCAN cluster output - Cluster A (Flood), Cluster B (Bridge), Noise
 //  *  5. Verified / Possible alert cards
 //  *  6. Pipeline parameter strip
 //  */
@@ -27,7 +27,7 @@
 //   TIME_WINDOW_HOURS:   3,
 //   GEO_RADIUS_KM:       3.0,
 //   MIN_CLUSTER_REPORTS: 3,
-//   DBSCAN_EPS:          0.62,
+//   DBSCAN_EPS:          0.82,
 //   DBSCAN_MIN_SAMPLES:  3,
 //   GUIDE_WEIGHT:        1.5,
 // };
@@ -81,7 +81,7 @@
 
 // // ─── Colours ──────────────────────────────────────────────────────────────────
 // const CLUSTER_COLOR = { A: '#E63946', B: '#2A9D8F', noise: '#9CA3AF' };
-// const CLUSTER_LABEL = { A: 'Cluster A — Flash Flood', B: 'Cluster B — Broken Bridge', noise: 'Noise' };
+// const CLUSTER_LABEL = { A: 'Cluster A - Flash Flood', B: 'Cluster B - Broken Bridge', noise: 'Noise' };
 
 // // ─── Similarity heatmap data (pre-computed from notebook diagnostics) ─────────
 // // Rows/cols = filtered reports R001–R009 (noise excluded from main cluster analysis)
@@ -158,7 +158,7 @@
 //     <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E2E8F0' }}>
 //       <div className="flex items-center gap-2 mb-4">
 //         <MapPin className="w-4 h-4 text-blue-500" />
-//         <span className="text-sm font-bold text-gray-800">All 14 Reports — GPS Coordinates</span>
+//         <span className="text-sm font-bold text-gray-800">All 14 Reports - GPS Coordinates</span>
 //         <span className="ml-auto text-xs text-gray-400">Boudhanath area, Kathmandu</span>
 //       </div>
 //       <ResponsiveContainer width="100%" height={320}>
@@ -276,7 +276,7 @@
 //       </div>
 //       <p className="text-xs text-gray-400 mb-4">
 //         Darker = more similar. Guide-involved pairs are multiplied by {PIPELINE.GUIDE_WEIGHT}× (capped at 1.0).
-//         Cross-cluster pairs (A vs B) are near 0 — confirmed different incidents.
+//         Cross-cluster pairs (A vs B) are near 0 - confirmed different incidents.
 //       </p>
 //       <div className="overflow-x-auto">
 //         <table className="text-[10px] border-separate border-spacing-1">
@@ -446,7 +446,7 @@
 //             </div>
 //             <div>
 //               <p className="text-[11px] font-black uppercase tracking-widest text-red-600">
-//                 🚨 Verified Incident — Cluster {c.id}
+//                 🚨 Verified Incident - Cluster {c.id}
 //               </p>
 //               <p className="font-bold text-gray-800 text-sm mt-0.5">{c.label}</p>
 //             </div>
@@ -483,7 +483,7 @@
 //       {/* noise */}
 //       <div className="rounded-2xl border p-4 bg-gray-50" style={{ borderColor: '#E2E8F0' }}>
 //         <p className="text-xs font-bold text-gray-500 mb-2">
-//           Noise (label = -1) — {noise.length} report(s) not clustered
+//           Noise (label = -1) - {noise.length} report(s) not clustered
 //         </p>
 //         <div className="flex flex-wrap gap-1.5">
 //           {noise.map(r => (
@@ -567,7 +567,7 @@
 //               <Shield className="w-5 h-5 text-white" />
 //             </div>
 //             <div>
-//               <h1 className="text-2xl font-black text-gray-900">GlobalMitra — DBSCAN Demo</h1>
+//               <h1 className="text-2xl font-black text-gray-900">GlobalMitra - DBSCAN Demo</h1>
 //               <p className="text-sm text-gray-500">
 //                 14 hardcoded Kathmandu reports · TF-IDF + Haversine + Guide 1.5× boost
 //               </p>
@@ -600,27 +600,27 @@
 
 //         {/* Step content */}
 //         {step === 'raw'        && (
-//           <Section title="Step 1 — All 14 Raw Reports" subtitle="Before any time or geo filtering. Each dot = one incident report from Kathmandu area.">
+//           <Section title="Step 1 - All 14 Raw Reports" subtitle="Before any time or geo filtering. Each dot = one incident report from Kathmandu area.">
 //             <RawScatterPlot />
 //           </Section>
 //         )}
 //         {step === 'filter' && (
-//           <Section title="Step 2 — 3h Time Window Filter" subtitle={`Only reports submitted in the last ${PIPELINE.TIME_WINDOW_HOURS}h are passed to DBSCAN. R010 (200 min) and R014 (170 min) are removed.`}>
+//           <Section title="Step 2 - 3h Time Window Filter" subtitle={`Only reports submitted in the last ${PIPELINE.TIME_WINDOW_HOURS}h are passed to DBSCAN. R010 (200 min) and R014 (170 min) are removed.`}>
 //             <TimeFilterStep />
 //           </Section>
 //         )}
 //         {step === 'similarity' && (
-//           <Section title="Step 3 — TF-IDF Cosine Similarity + Guide Boost" subtitle="Intra-cluster pairs score >0.65. Cross-cluster pairs score <0.05. Guide pairs multiplied ×1.5.">
+//           <Section title="Step 3 - TF-IDF Cosine Similarity + Guide Boost" subtitle="Intra-cluster pairs score >0.65. Cross-cluster pairs score <0.05. Guide pairs multiplied ×1.5.">
 //             <SimilarityHeatmap />
 //           </Section>
 //         )}
 //         {step === 'dbscan' && (
-//           <Section title={`Step 4 — DBSCAN (eps=${PIPELINE.DBSCAN_EPS}, min_samples=${PIPELINE.DBSCAN_MIN_SAMPLES})`} subtitle="Two clear clusters emerge. Noise points are isolated reports that don't share enough textual+spatial similarity.">
+//           <Section title={`Step 4 - DBSCAN (eps=${PIPELINE.DBSCAN_EPS}, min_samples=${PIPELINE.DBSCAN_MIN_SAMPLES})`} subtitle="Two clear clusters emerge. Noise points are isolated reports that don't share enough textual+spatial similarity.">
 //             <DBSCANResultPlot />
 //           </Section>
 //         )}
 //         {step === 'verified' && (
-//           <Section title="Step 5 — Verified Incidents + Alert Broadcast" subtitle={`Clusters with ≥${PIPELINE.MIN_CLUSTER_REPORTS} reports are marked VERIFIED and trigger auto AlertBroadcast.`}>
+//           <Section title="Step 5 - Verified Incidents + Alert Broadcast" subtitle={`Clusters with ≥${PIPELINE.MIN_CLUSTER_REPORTS} reports are marked VERIFIED and trigger auto AlertBroadcast.`}>
 //             <VerifiedCards />
 //           </Section>
 //         )}

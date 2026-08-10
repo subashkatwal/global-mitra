@@ -201,7 +201,7 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
 
   const sc            = STATUS_CONFIG[guide.verificationStatus] ?? STATUS_CONFIG.PENDING;
   const fullName      = guide.user?.fullName ?? authUser?.fullName ?? 'G';
-  // API returns a full URL already — use directly (no resolving needed)
+  // API returns a full URL already - use directly (no resolving needed)
   const resolvedPhoto = photoUrl;
 
   // ── Dashboard: single back button here, no duplicate inside dashboard ──────
@@ -352,7 +352,7 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
                         <Lock className="w-2.5 h-2.5" /> READ ONLY
                       </span>
                     </label>
-                    <input value={guide.licenseNumber || '—'} readOnly className={readonlyCls} />
+                    <input value={guide.licenseNumber || '-'} readOnly className={readonlyCls} />
                     <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
                       <Mail className="w-3 h-3" />To update, email{' '}
                       <a href="mailto:support@globalmitra.com" className="text-[#3CA37A] hover:underline font-medium ml-0.5">support@globalmitra.com</a>
@@ -365,7 +365,7 @@ export function GuideProfilePage({ onNavigate }: GuideProfilePageProps) {
                         <Lock className="w-2.5 h-2.5" /> READ ONLY
                       </span>
                     </label>
-                    <input value={guide.licenseIssuedBy || '—'} readOnly
+                    <input value={guide.licenseIssuedBy || '-'} readOnly
                       className="w-full px-4 py-3 rounded-xl border border-gray-100 text-sm text-gray-500 bg-gray-50 cursor-not-allowed" />
                     <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
                       <Mail className="w-3 h-3" />To update, email{' '}

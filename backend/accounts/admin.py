@@ -45,7 +45,7 @@ class UserAdmin(BaseUserAdmin):
         if obj.photo:
             return format_html(
                 '<img src="{}" style="width:100px;height:100px;border-radius:12px;object-fit:cover;border:2px solid #e5e7eb;" />'
-                '<p style="margin-top:6px;font-size:12px;color:#6b7280;">Current photo — upload a new one below to replace it.</p>',
+                '<p style="margin-top:6px;font-size:12px;color:#6b7280;">Current photo - upload a new one below to replace it.</p>',
                 obj.photo.url
             )
         return format_html('<p style="color:#9ca3af;font-size:12px;">No photo uploaded yet.</p>')

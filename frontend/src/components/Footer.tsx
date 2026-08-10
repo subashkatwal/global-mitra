@@ -147,7 +147,7 @@ export function Footer() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               {/* Copyright */}
               <p className="text-white/50 text-sm">
-                © 2024 Global Mitra. All rights reserved.
+                © 2026 Global Mitra. All rights reserved.
               </p>
 
               {/* Social Links */}

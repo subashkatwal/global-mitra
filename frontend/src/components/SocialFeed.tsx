@@ -160,7 +160,7 @@ function authorPhoto(item: Post | Comment): string | null {
 /**
  * Reliable ownership check.
  * Priority: role-based admin bypass → UUID ID match → fallback false.
- * Name matching removed — too error-prone.
+ * Name matching removed - too error-prone.
  */
 function isOwnItem(item: Post | Comment, currentUser: CurrentUser | null | undefined): boolean {
   if (!currentUser) return false;
@@ -743,7 +743,7 @@ console.log('isOwn:', isOwn)
             </div>
           </div>
 
-          {/* Three-dot menu — visible to post owner OR admin */}
+          {/* Three-dot menu - visible to post owner OR admin */}
           {isOwn && (
             <ThreeDotMenu
               onEdit={()   => setEditing(true)}

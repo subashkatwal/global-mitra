@@ -1,6 +1,6 @@
 """
 Seed 15 random users (10 tourists + 5 guides) directly into the DB.
-Bypasses OTP flow — users are created as verified + active.
+Bypasses OTP flow - users are created as verified + active.
  
 Usage:
     python manage.py shell < seed_users.py
@@ -132,7 +132,7 @@ for g in GUIDES:
                 verificationStatus="APPROVED",
             )
             created_guides += 1
-            print(f"   Guide:   {g['fullName']} ({g['email']}) — {g['licenseNumber']}")
+            print(f"   Guide:   {g['fullName']} ({g['email']}) - {g['licenseNumber']}")
     except Exception as e:
         print(f"   Failed {g['email']}: {e}")
         skipped += 1

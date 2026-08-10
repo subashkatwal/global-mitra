@@ -41,19 +41,19 @@ POSTS = [
     },
     {
         "email": "suraj.basnet@example.com",
-        "textContent": "Paragliding over Pokhara with the Phewa Lake and Machhapuchhre (Fishtail Mountain) below me — this is peak Nepal! Absolutely unreal experience. 10/10 would do again tomorrow. 🪂 #Paragliding #Pokhara #Nepal",
+        "textContent": "Paragliding over Pokhara with the Phewa Lake and Machhapuchhre (Fishtail Mountain) below me - this is peak Nepal! Absolutely unreal experience. 10/10 would do again tomorrow. 🪂 #Paragliding #Pokhara #Nepal",
     },
     {
         "email": "anita.gurung@example.com",
-        "textContent": "Chitwan National Park jeep safari early this morning — spotted 2 rhinos, a wild elephant, and a crocodile by the river! The biodiversity here is incredible. Nepal is not just mountains! 🦏 #Chitwan #WildlifeSafari #Nepal",
+        "textContent": "Chitwan National Park jeep safari early this morning - spotted 2 rhinos, a wild elephant, and a crocodile by the river! The biodiversity here is incredible. Nepal is not just mountains! 🦏 #Chitwan #WildlifeSafari #Nepal",
     },
     {
         "email": "dipak.rai@example.com",
-        "textContent": "Tried dal bhat at a local teahouse in Namche Bazaar — simple food, big flavors, unlimited refills. This is the fuel that powers trekkers through the Himalayas. Nothing beats it after a long day on the trail. 🍛 #DalBhat #NamcheBazaar #TrekkingFood",
+        "textContent": "Tried dal bhat at a local teahouse in Namche Bazaar - simple food, big flavors, unlimited refills. This is the fuel that powers trekkers through the Himalayas. Nothing beats it after a long day on the trail. 🍛 #DalBhat #NamcheBazaar #TrekkingFood",
     },
     {
         "email": "kamala.shrestha@example.com",
-        "textContent": "Boudhanath Stupa at dusk is pure magic. The eyes of the Buddha watching over the valley, butter lamps flickering, monks chanting — I sat here for 2 hours just absorbing the peace. 🕯️ #Boudhanath #Kathmandu #Buddhism",
+        "textContent": "Boudhanath Stupa at dusk is pure magic. The eyes of the Buddha watching over the valley, butter lamps flickering, monks chanting - I sat here for 2 hours just absorbing the peace. 🕯️ #Boudhanath #Kathmandu #Buddhism",
     },
 
     # Guides
@@ -63,11 +63,11 @@ POSTS = [
     },
     {
         "email": "dorje.lama@example.com",
-        "textContent": "The Annapurna Conservation Area is showing amazing recovery this year — more wildlife, cleaner trails. As guides it's our responsibility to educate trekkers about Leave No Trace principles. Let's keep Nepal's nature pristine for generations. 🌿 #ResponsibleTrekking #Annapurna #Conservation",
+        "textContent": "The Annapurna Conservation Area is showing amazing recovery this year - more wildlife, cleaner trails. As guides it's our responsibility to educate trekkers about Leave No Trace principles. Let's keep Nepal's nature pristine for generations. 🌿 #ResponsibleTrekking #Annapurna #Conservation",
     },
     {
         "email": "mingma.dolkar@example.com",
-        "textContent": "Taking a group through the hidden courtyards of Patan today. Most tourists only see the main Durbar Square but the real magic is in the back alleys — ancient stone water spouts (hitis), hidden temples, and local life unchanged for centuries. 🏛️ #Patan #HiddenNepal #CulturalTour",
+        "textContent": "Taking a group through the hidden courtyards of Patan today. Most tourists only see the main Durbar Square but the real magic is in the back alleys - ancient stone water spouts (hitis), hidden temples, and local life unchanged for centuries. 🏛️ #Patan #HiddenNepal #CulturalTour",
     },
     {
         "email": "tenzin.norbu@example.com",
@@ -75,7 +75,7 @@ POSTS = [
     },
     {
         "email": "lakpa.diki@example.com",
-        "textContent": "Completed the Island Peak (Imja Tse) climb with 4 trekkers today — all first-time summiteers! At 6,189m, the view of Lhotse, Makalu and Ama Dablam is something that never gets old no matter how many times you stand here. Congratulations team! 🎉⛰️ #IslandPeak #Climbing #NepalGuide",
+        "textContent": "Completed the Island Peak (Imja Tse) climb with 4 trekkers today - all first-time summiteers! At 6,189m, the view of Lhotse, Makalu and Ama Dablam is something that never gets old no matter how many times you stand here. Congratulations team! 🎉⛰️ #IslandPeak #Climbing #NepalGuide",
     },
 ]
 
@@ -89,7 +89,7 @@ for p in POSTS:
     try:
         user = User.objects.get(email=p["email"])
     except User.DoesNotExist:
-        print(f"  ⚠️  User not found: {p['email']} — run seed_users.py first!")
+        print(f"  ⚠️  User not found: {p['email']} - run seed_users.py first!")
         skipped += 1
         continue
 

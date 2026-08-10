@@ -102,7 +102,7 @@ export function DestinationMarquee({ onPlaceClick }: DestinationMarqueeProps) {
     );
   }
 
-  // Split into 2 equal rows — if odd number, pad last row with first item
+  // Split into 2 equal rows - if odd number, pad last row with first item
   const half = Math.ceil(destinations.length / 2);
   const row1Base = destinations.slice(0, half);
   const row2Base = destinations.slice(half);
@@ -145,10 +145,10 @@ export function DestinationMarquee({ onPlaceClick }: DestinationMarqueeProps) {
         <h2 className="font-heading text-3xl md:text-4xl font-bold text-[#2C3E50]">
           Explore Popular Places
         </h2>
-        <p className="text-[#7F8C8D] mt-2">{destinations.length} destinations from Nepal</p>
+        <p className="text-[#7F8C8D] mt-2"> Destinations from Nepal</p>
       </motion.div>
 
-      {/* Row 1 — left */}
+      {/* Row 1 - left */}
       <motion.div
         initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
         className="relative mb-5"
@@ -162,7 +162,7 @@ export function DestinationMarquee({ onPlaceClick }: DestinationMarqueeProps) {
         </div>
       </motion.div>
 
-      {/* Row 2 — right */}
+      {/* Row 2 - right */}
       <motion.div
         initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
         transition={{ delay: 0.15 }}

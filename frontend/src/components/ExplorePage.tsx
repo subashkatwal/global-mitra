@@ -200,7 +200,7 @@ export function ExplorePage({ onDestinationClick }: { onDestinationClick: (id: s
   return (
     <div className="min-h-screen bg-[#F0FBF5]">
 
-      {/* Header — Blue/Navy theme */}
+      {/* Header - Blue/Navy theme */}
       <div className="bg-gradient-to-br from-[#1A3D2B] via-[#2D8F6A] to-[#3CA37A] text-white px-4 sm:px-8 lg:px-16 pt-10 pb-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto">
           <p className="text-[#6FCFA8] text-sm font-semibold tracking-widest uppercase mb-2">Discover Nepal</p>
@@ -210,7 +210,7 @@ export function ExplorePage({ onDestinationClick }: { onDestinationClick: (id: s
           <p className="text-white/80 text-lg">
             {isLoading ? 'Loading...' : `${totalCount} destination${totalCount !== 1 ? 's' : ''} found`}
           </p>
-          {/* Search bar — no icon */}
+          {/* Search bar - no icon */}
           <div className="relative mt-8 max-w-2xl">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6FCFA8]" />
             <input
@@ -228,7 +228,7 @@ export function ExplorePage({ onDestinationClick }: { onDestinationClick: (id: s
       <div className="sticky top-[60px] sm:top-[68px] z-30 bg-white border-b border-[#A8DFC8]/60 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-16 py-3 flex items-center gap-2 overflow-x-auto scrollbar-hide">
 
-          {/* All pill — no Compass icon */}
+          {/* All pill - no Compass icon */}
           <button onClick={() => updateFilter('difficulty', '')}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 transition-all ${
               !filters.difficulty ? 'bg-[#3CA37A] text-white shadow-md' : 'bg-[#F0FBF5] text-[#3CA37A] border border-[#A8DFC8] hover:bg-[#D0F0E4]'
@@ -236,7 +236,7 @@ export function ExplorePage({ onDestinationClick }: { onDestinationClick: (id: s
             All
           </button>
 
-          {/* Difficulty pills — no icons */}
+          {/* Difficulty pills - no icons */}
           {DIFFICULTY_OPTIONS.map(d => (
             <button key={d} onClick={() => toggleFilter('difficulty', d)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap flex-shrink-0 transition-all ${

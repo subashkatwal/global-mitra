@@ -281,7 +281,7 @@ export const Td = ({
   mono?: boolean;
 }) => (
   <td className={`px-4 py-3 text-gray-700 ${mono ? 'font-mono text-xs' : ''}`}>
-    {children ?? '—'}
+    {children ?? '-'}
   </td>
 );
 

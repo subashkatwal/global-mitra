@@ -33,7 +33,7 @@ export function CTASection({ onJoinClick }: CTASectionProps) {
       ref={sectionRef}
       className="py-24 relative overflow-hidden"
     >
-      {/* Solid green background — no pattern, no SVG overlay */}
+      {/* Solid green background - no pattern, no SVG overlay */}
       <div className="absolute inset-0" style={{ backgroundColor: '#3CA37A' }} />
 
       <div className="section-padding relative z-10">

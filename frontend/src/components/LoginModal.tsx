@@ -23,7 +23,7 @@ function parseError(err: any): string {
   if (!data) return 'An error occurred. Please try again.';
 
   if (typeof data === 'object' && !Array.isArray(data)) {
-    // Check top-level message keys first — order matters
+    // Check top-level message keys first - order matters
     if (data.error)   return String(data.error);
     if (data.detail)  return String(data.detail);
     if (data.message) return String(data.message);
@@ -357,7 +357,7 @@ if (res.success) {
             </div>
 
             <div className="px-6 sm:px-10 pb-8 sm:pb-10">
-              {/* Error always red, success always green — never shown together */}
+              {/* Error always red, success always green - never shown together */}
               {error && (
                 <div className="mb-4 sm:mb-5 p-3 sm:p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
