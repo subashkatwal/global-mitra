@@ -1,5 +1,5 @@
 /**
- * useAuthGuard — centralised login-gate hook
+ * useAuthGuard - centralised login-gate hook
  *
  * Usage in any component:
  *
@@ -15,7 +15,7 @@
 import { useAuthStore } from '@/store/authStore';
 
 interface UseAuthGuardOptions {
-  /** Called when the user is not authenticated — default opens login modal via context */
+  /** Called when the user is not authenticated - default opens login modal via context */
   onUnauthenticated?: () => void;
 }
 

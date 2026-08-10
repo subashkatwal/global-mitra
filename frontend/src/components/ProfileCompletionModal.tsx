@@ -233,7 +233,7 @@ export default function ProfileCompletionModal({ isOpen, onClose }: ProfileCompl
             className="relative w-full max-w-[460px] bg-white rounded-2xl shadow-2xl my-4"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* ── X button — everyone gets it, guides get warning ── */}
+            {/* ── X button - everyone gets it, guides get warning ── */}
             <button
               onClick={handleCloseAttempt}
               className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 transition-colors z-10"
@@ -274,7 +274,7 @@ export default function ProfileCompletionModal({ isOpen, onClose }: ProfileCompl
 
               <form onSubmit={handleSubmit} className="space-y-4">
 
-                {/* ── Photo Upload — centered ── */}
+                {/* ── Photo Upload - centered ── */}
                 <div className="flex flex-col items-center gap-2 py-2">
                   <div className="relative">
                     <div

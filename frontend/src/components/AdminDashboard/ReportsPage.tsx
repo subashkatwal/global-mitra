@@ -22,9 +22,9 @@ const C = {
 };
 const PIPELINE = {
   TIME_WINDOW_HOURS:   3,
-  GEO_RADIUS_KM:       3.0,
+  GEO_RADIUS_KM:       10.0,
   MIN_CLUSTER_REPORTS: 3,
-  DBSCAN_EPS:          0.62,
+  DBSCAN_EPS:          0.82,
   DBSCAN_MIN_SAMPLES:  3,
 };
 
@@ -133,8 +133,11 @@ function normReport(r: any): Report {
     location:        r.location,
     latitude:        r.latitude,
     longitude:       r.longitude,
-    reporter:        r.user ?? r.reporter,
-    reporterName:    r.reporter_name ?? r.reporterName,
+    reporter:        r.user ?? r.reporter ?? {
+      fullName: r.author_name ?? r.authorName,
+      email:    r.author_email ?? r.authorEmail,
+    },
+    reporterName:    r.reporter_name ?? r.reporterName ?? r.author_name ?? r.authorName,
     status:          r.status,
     confidenceScore: parseFloat(r.confidence_score ?? r.confidenceScore ?? '0'),
     image:           r.image ?? r.evidence ?? null,
@@ -210,7 +213,7 @@ function normOverview(raw: any): Overview {
 }
 
 function timeAgo(iso?: string): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60)    return `${s}s ago`;
   if (s < 3600)  return `${Math.floor(s / 60)}m ago`;
@@ -223,7 +226,7 @@ function locName(r: Report): string {
   if (!r.location) {
     return r.latitude
       ? `${Number(r.latitude).toFixed(4)}, ${Number(r.longitude).toFixed(4)}`
-      : '—';
+      : '-';
   }
   if (typeof r.location === 'string') return r.location;
   return r.location.name ?? `${r.location.lat ?? 0}, ${r.location.lng ?? 0}`;
@@ -231,7 +234,7 @@ function locName(r: Report): string {
 
 function rName(r: Report): string {
   const p = r.reporter as any;
-  return p?.fullName ?? p?.full_name ?? p?.name ?? r.reporterName ?? '—';
+  return p?.fullName ?? p?.full_name ?? p?.name ?? r.reporterName ?? '-';
 }
 
 function rEmail(r: Report): string {
@@ -378,7 +381,7 @@ function ClusterDetailsModal({ cluster, onClose, onBroadcast }:
                 label: 'Center Location',
                 value: detail.centerLatitude != null
                   ? `${Number(detail.centerLatitude).toFixed(4)}\n${Number(detail.centerLongitude).toFixed(4)}`
-                  : '—',
+                  : '-',
               },
               {
                 label: 'Detected',
@@ -386,7 +389,7 @@ function ClusterDetailsModal({ cluster, onClose, onBroadcast }:
                   ? new Date(date).toLocaleDateString('en-US', {
                       month: 'short', day: 'numeric', year: 'numeric',
                     })
-                  : '—',
+                  : '-',
                 sub: date ? timeAgo(date) : undefined,
               },
             ].map(({ label, value, color, sub }) => (
@@ -448,14 +451,14 @@ function ClusterDetailsModal({ cluster, onClose, onBroadcast }:
                 {reports.map(r => {
                   const pctR     = confPct(r.confidenceScore);
                   const confColR = pctR >= 75 ? '#22C55E' : pctR >= 50 ? '#F59E0B' : '#EF4444';
-                  const repName  = typeof r.reporter === 'string' ? r.reporter : '—';
+                  const repName  = typeof r.reporter === 'string' ? r.reporter : '-';
                   return (
                     <div key={r.id}
                       className="flex items-start gap-3 p-3 rounded-xl border"
                       style={{ borderColor: C.borderSm, background: '#FAFBFC' }}>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm line-clamp-2 mb-1" style={{ color: C.textSub }}>
-                          {r.description ?? '—'}
+                          {r.description ?? '-'}
                         </p>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[11px]" style={{ color: C.textMuted }}>
@@ -536,7 +539,7 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
           <div className="p-4 rounded-xl" style={{ background: C.bg }}>
             <p className="text-xs font-semibold mb-1.5" style={{ color: C.textMuted }}>Description</p>
             <p className="text-sm leading-relaxed" style={{ color: C.textSub }}>
-              {report.description ?? '—'}
+              {report.description ?? '-'}
             </p>
           </div>
 
@@ -587,7 +590,7 @@ function ReportDetailModal({ report, onClose, onVerify, onReject }:
                   </p>
                 </>
               ) : (
-                <p className="text-sm" style={{ color: C.textMuted }}>—</p>
+                <p className="text-sm" style={{ color: C.textMuted }}>-</p>
               )}
             </div>
           </div>
@@ -922,7 +925,12 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
   const act = async (id: string, action: 'verify' | 'reject') => {
     try {
       await apiFetch(`/reports/${id}/${action}`, { method: 'POST' });
-      toast(action === 'verify' ? 'Report verified.' : 'Report rejected.', 'success');
+      toast(
+        action === 'verify'
+          ? 'Report verified and alert created.'
+          : 'Report rejected.',
+        'success'
+      );
       load();
       if (viewing?.id === id) setViewing(null);
     } catch (e: any) { toast(parseErr(e), 'error'); }
@@ -1012,7 +1020,7 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
                       <td className="px-4 py-3"><CatPill cat={r.category} /></td>
                       <td className="px-4 py-3 max-w-[200px]">
                         <span className="text-sm line-clamp-2 block" style={{ color: C.textSub }}>
-                          {r.description ?? '—'}
+                          {r.description ?? '-'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -1040,7 +1048,7 @@ function ReportsTab({ toast }: { toast: ToastFn }) {
                           {(r.status ?? '').toLowerCase() === 'pending' && (
                             <>
                               <button onClick={() => act(r.id, 'verify')}
-                                className="p-1.5 rounded-lg hover:bg-green-50 transition-colors" title="Verify">
+                                className="p-1.5 rounded-lg hover:bg-green-50 transition-colors" title="Verify and create alert">
                                 <Check className="w-4 h-4" style={{ color: '#059669' }} />
                               </button>
                               <button onClick={() => act(r.id, 'reject')}
@@ -1265,7 +1273,7 @@ function ClustersTab({ toast }: { toast: ToastFn }) {
                 </div>
               </div>
 
-              {/* Action buttons — always on their own row */}
+              {/* Action buttons - always on their own row */}
               <div className="flex items-center gap-2 pt-1">
                 <button onClick={() => setDetailing(cl)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl
@@ -1426,7 +1434,7 @@ const sendToAll = async (alert: AlertItem) => {
               </div>
 
               <p className="text-sm leading-relaxed mb-2" style={{ color: C.textSub }}>
-                {a.message ?? '—'}
+                {a.message ?? '-'}
               </p>
 
               <div className="flex flex-wrap items-center gap-4 text-[11px]" style={{ color: C.textMuted }}>

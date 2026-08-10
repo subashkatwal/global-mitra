@@ -53,7 +53,7 @@ class RegisterSerializer(serializers.ModelSerializer):
                 user.phoneNumber = phone_number
             user.save()
 
-            # Placeholder GuideProfile — real details filled via /guides/profile/complete
+            # Placeholder GuideProfile - real details filled via /guides/profile/complete
             if role == "GUIDE":
                 GuideProfile.objects.create(
                     user=user,
@@ -201,7 +201,7 @@ class GuideProfileCompleteSerializer(serializers.Serializer):
     )
     bio = serializers.CharField(required=False, allow_blank=True)
 
-    # Common profile fields (optional — same as tourist)
+    # Common profile fields (optional - same as tourist)
     phoneNumber = serializers.CharField(
         required=False,
         allow_blank=True,

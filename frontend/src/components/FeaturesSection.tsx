@@ -8,8 +8,8 @@ const features = [
     icon: Shield,
     title: 'GPS-Verified Reports',
     description: 'Every report is location-verified, ensuring you get accurate, trustworthy information from real travelers at real places.',
-    stat: '98.7%',
-    statLabel: 'accuracy rate',
+    // stat: '98.7%',
+    // statLabel: 'accuracy rate',
     color: '#2ECC71',
     bgColor: 'rgba(46, 204, 113, 0.1)'
   },
@@ -17,9 +17,9 @@ const features = [
     id: 2,
     icon: Users,
     title: 'Community-Powered',
-    description: 'Join 50,000+ travelers sharing experiences, tips, and hidden gems. Build connections that last beyond the journey.',
-    stat: '50K+',
-    statLabel: 'active members',
+    description: 'Join  travelers sharing experiences, tips, and hidden gems. Build connections that last beyond the journey.',
+    // stat: '50K+',
+    // statLabel: 'active members',
     color: '#FF6B35',
     bgColor: 'rgba(255, 107, 53, 0.1)'
   },
@@ -28,21 +28,21 @@ const features = [
     icon: Clock,
     title: 'Real-Time Updates',
     description: 'Get instant notifications about place conditions, crowds, and safety alerts from travelers on the ground.',
-    stat: '< 4h',
-    statLabel: 'avg. verification',
+    // stat: '< 4h',
+    // statLabel: 'avg. verification',
     color: '#F7B801',
     bgColor: 'rgba(247, 184, 1, 0.1)'
   },
-  {
-    id: 4,
-    icon: BarChart3,
-    title: 'Smart Comparison Tool',
-    description: 'Compare up to 4 destinations side-by-side with ratings, costs, weather, and traveler reviews in one view.',
-    stat: '2-4',
-    statLabel: 'places instantly',
-    color: '#004E89',
-    bgColor: 'rgba(0, 78, 137, 0.1)'
-  }
+  // {
+  //   id: 4,
+  //   icon: BarChart3,
+  //   title: 'Smart Comparison Tool',
+  //   description: 'Compare up to 4 destinations side-by-side with ratings, costs, weather, and traveler reviews in one view.',
+  //   stat: '2-4',
+  //   statLabel: 'places instantly',
+  //   color: '#004E89',
+  //   bgColor: 'rgba(0, 78, 137, 0.1)'
+  // }
 ];
 
 export function FeaturesSection() {
@@ -151,10 +151,10 @@ export function FeaturesSection() {
             className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6"
           >
             {[
-              { value: '100%', label: 'Verified Reports', icon: CheckCircle },
-              { value: '24/7', label: 'Community Support', icon: Users },
-              { value: '150+', label: 'Countries Covered', icon: TrendingUp },
-              { value: '4.9★', label: 'App Store Rating', icon: TrendingUp }
+              // { value: '100%', label: 'Verified Reports', icon: CheckCircle },
+              // { value: '24/7', label: 'Community Support', icon: Users },
+              // { value: '150+', label: 'Countries Covered', icon: TrendingUp },
+              // { value: '4.9★', label: 'App Store Rating', icon: TrendingUp }
             ].map((stat, index) => {
               const Icon = stat.icon;
               return (

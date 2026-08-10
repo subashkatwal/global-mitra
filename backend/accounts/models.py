@@ -25,7 +25,7 @@ class User(AbstractUser):
         upload_to='profile_photos/',
         blank=True,
         null=True,
-        help_text="Profile photo — stored in MEDIA_ROOT/profile_photos/"
+        help_text="Profile photo - stored in MEDIA_ROOT/profile_photos/"
     )
     address = models.CharField(max_length=255, blank=True, null=True, help_text="Full address including city, district, country")
 

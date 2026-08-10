@@ -75,7 +75,7 @@ function App() {
   // };
 
   const handleNavigate = (view: View) => {
-    // Guard profile, guide, dashboard, admin — must be logged in
+    // Guard profile, guide, dashboard, admin - must be logged in
     if (
       (view === 'profile' || view === 'guide' || view === 'dashboard' || view === 'admin') &&
       !isAuthenticated

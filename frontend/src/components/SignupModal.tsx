@@ -125,7 +125,7 @@ export default function SignupModal({
         setError('');
 
         if (role === 'GUIDE') {
-          // Store tokens without marking as fully authenticated —
+          // Store tokens without marking as fully authenticated -
           // guide still needs admin approval after profile completion.
           if (response.tokens) {
             setPendingGuideTokens(response.tokens);
@@ -142,7 +142,7 @@ export default function SignupModal({
           }, 1200);
 
         } else {
-          // TOURIST — log in immediately
+          // TOURIST - log in immediately
           if (response.user && response.tokens) {
             login(response.user, response.tokens);
           }

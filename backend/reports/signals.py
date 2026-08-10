@@ -10,7 +10,7 @@ def trigger_clustering_on_new_report(sender, instance, created, **kwargs):
     if not created:
         return
 
-    logger.info("IncidentReport %s created — triggering clustering.", instance.id)
+    logger.info("IncidentReport %s created - triggering clustering.", instance.id)
 
     try:
         from django.utils import timezone
@@ -29,7 +29,7 @@ def trigger_clustering_on_new_report(sender, instance, created, **kwargs):
 
         clusters = run_clustering_pipeline(reports)
         created_clusters = save_clusters_to_db(clusters)
-        logger.info("Clustering done — %d cluster(s) created.", len(created_clusters))
+        logger.info("Clustering done - %d cluster(s) created.", len(created_clusters))
 
     except Exception as exc:
         logger.exception(

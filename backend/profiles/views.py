@@ -110,16 +110,13 @@ class UserProfileView(generics.GenericAPIView):
             {"success": True, "message": f"Account {email} deleted successfully."},
             status=status.HTTP_200_OK,
         )
-
-
-# --------------------- User Photo Upload ---------------------
 class UserPhotoUploadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
     @extend_schema(
         summary="Upload profile photo",
-        description="Upload a profile photo (JPEG, PNG, WebP, GIF — max 5 MB). Replaces any existing photo. Returns the absolute photo URL.",
+        description="Upload a profile photo (JPEG, PNG, WebP, GIF - max 5 MB). Replaces any existing photo. Returns the absolute photo URL.",
         responses={
             200: OpenApiResponse(description="Photo uploaded successfully"),
             400: OpenApiResponse(description="Invalid file or missing photo field"),

@@ -33,9 +33,9 @@ const C = {
 
 const PIPELINE = {
   TIME_WINDOW_HOURS:   3,
-  GEO_RADIUS_KM:       3.0,
+  GEO_RADIUS_KM:       10.0,
   MIN_CLUSTER_REPORTS: 3,
-  DBSCAN_EPS:          0.62,
+  DBSCAN_EPS:          0.82,
   DBSCAN_MIN_SAMPLES:  3,
 };
 

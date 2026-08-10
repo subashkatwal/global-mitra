@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 from django.db.models import Count
+from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
 
@@ -168,21 +169,57 @@ class ReportVerifyView(APIView):
                 {"detail": "Report not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        report.status = "VERIFIED"
-        report.verifiedBy = request.user
-        report.save(update_fields=["status", "verifiedBy"])
+        if report.status != "PENDING":
+            return Response(
+                {"detail": "Only pending reports can be verified and alerted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        Notification.objects.create(
-            recipient=report.user,
-            notificationType="REPORT_VERIFIED",
-            title="Report Verified",
-            message="Your incident report has been verified by an admin.",
-            incidentReport=report,
-        )
+        # An admin verification is a deliberate override: create a one-report
+        # alert without running the DBSCAN / TF-IDF clustering pipeline.
+        with transaction.atomic():
+            report.status = "VERIFIED"
+            report.verifiedBy = request.user
+            report.save(update_fields=["status", "verifiedBy"])
 
-        return Response(
-            IncidentReportReadSerializer(report, context={"request": request}).data
-        )
+            incident_cluster = IncidentCluster.objects.create(
+                centerLatitude=report.latitude,
+                centerLongitude=report.longitude,
+                topKeywords=[],
+                confidenceScore=0.0,
+                dominantCategory=report.category,
+                isAlertTriggered=True,
+            )
+            incident_cluster.reports.add(report)
+
+            category = report.category.replace("_", " ").title()
+            message = (
+                f"⚠️ {category} alert near your location. "
+                f"{report.description}"
+            )
+            alert = AlertBroadcast.objects.create(
+                cluster=incident_cluster,
+                message=message,
+                severity="HIGH",
+                triggerType="MANUAL",
+                broadcastedBy=request.user,
+            )
+
+            Notification.objects.create(
+                recipient=report.user,
+                notificationType="ALERT_BROADCAST",
+                title=f"High Alert: {category}",
+                message=message,
+                incidentReport=report,
+            )
+
+        response_data = IncidentReportReadSerializer(
+            report, context={"request": request}
+        ).data
+        response_data["alert"] = AlertBroadcastSerializer(
+            alert, context={"request": request}
+        ).data
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class ReportRejectView(APIView):

@@ -1,20 +1,20 @@
 /**
- * AuthGuard component — wraps content that requires authentication.
+ * AuthGuard component - wraps content that requires authentication.
  *
  * THREE modes:
  *
- * 1. FULL BLOCK  — user must be logged in to see anything
+ * 1. FULL BLOCK  - user must be logged in to see anything
  *    <AuthGuard mode="block" onLoginClick={openLogin}>
  *      <ReportPage />
  *    </AuthGuard>
  *
- * 2. READ-ONLY   — unauthenticated users see content but CUD actions are gated
+ * 2. READ-ONLY   - unauthenticated users see content but CUD actions are gated
  *    Wrap individual buttons:
  *    <AuthGuard mode="action" onLoginClick={openLogin}>
  *      <button>Create Post</button>
  *    </AuthGuard>
  *
- * 3. DETAIL GATE — show a teaser/blur, prompt login for full content
+ * 3. DETAIL GATE - show a teaser/blur, prompt login for full content
  *    <AuthGuard mode="detail" onLoginClick={openLogin} teaser={<CardPreview />}>
  *      <FullDetailPanel />
  *    </AuthGuard>
@@ -27,9 +27,8 @@ interface AuthGuardProps {
   children: React.ReactNode;
   mode?: 'block' | 'action' | 'detail';
   onLoginClick: () => void;
-  /** Only used in 'detail' mode — shown to unauthenticated users as a preview */
   teaser?: React.ReactNode;
-  /** Custom message shown in block / detail gate */
+
   message?: string;
 }
 
@@ -42,7 +41,6 @@ export function AuthGuard({
 }: AuthGuardProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  // ── BLOCK mode — show a login wall ──────────────────────────────────────────
   if (mode === 'block' && !isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
@@ -64,8 +62,6 @@ export function AuthGuard({
     );
   }
 
-  // ── ACTION mode — render children but gate clicks ──────────────────────────
-  // Wrap each child's onClick; if not authenticated, intercept and open login.
   if (mode === 'action' && !isAuthenticated) {
     return (
       <div
@@ -84,7 +80,7 @@ export function AuthGuard({
     );
   }
 
-  // ── DETAIL mode — show teaser + blur overlay ────────────────────────────────
+
   if (mode === 'detail' && !isAuthenticated) {
     return (
       <div className="relative">
@@ -116,6 +112,6 @@ export function AuthGuard({
     );
   }
 
-  // ── Authenticated — render normally ─────────────────────────────────────────
+
   return <>{children}</>;
 }

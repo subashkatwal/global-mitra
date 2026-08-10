@@ -6,9 +6,9 @@ Run with:
     python manage.py simulate_incidents
 
 Shows 3 scenarios:
-  A — 5 landslide reports near Langtang  → AUTO-BROADCAST triggered
-  B — 3 flood reports near Thamel        → Admin notified only
-  C — 3 scattered noise reports          → Rejected as false alarms
+  A - 5 landslide reports near Langtang  → AUTO-BROADCAST triggered
+  B - 3 flood reports near Thamel        → Admin notified only
+  C - 3 scattered noise reports          → Rejected as false alarms
 """
 
 import random
@@ -32,7 +32,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS("\nGlobal Mitra — Incident System Demo Simulation"))
+        self.stdout.write(self.style.SUCCESS("\nGlobal Mitra - Incident System Demo Simulation"))
         self.stdout.write("=" * 60)
 
         # Setup users

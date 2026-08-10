@@ -100,7 +100,7 @@ function InfoRow({
     <div className="flex items-center justify-between py-3.5 border-b border-gray-100 last:border-0">
       <span className="text-sm text-gray-500">{label}</span>
       {badge ?? (
-        <span className="text-sm font-bold text-gray-800">{value ?? "—"}</span>
+        <span className="text-sm font-bold text-gray-800">{value ?? "-"}</span>
       )}
     </div>
   );
@@ -296,13 +296,13 @@ export function PlaceDetails({
                 {
                   icon: Mountain,
                   label: "Altitude",
-                  value: d.altitude != null ? `${d.altitude}m` : "—",
+                  value: d.altitude != null ? `${d.altitude}m` : "-",
                 },
-                { icon: Clock, label: "Duration", value: d.duration || "—" },
+                { icon: Clock, label: "Duration", value: d.duration || "-" },
                 {
                   icon: Calendar,
                   label: "Best Season",
-                  value: d.bestSeason || "—",
+                  value: d.bestSeason || "-",
                 },
                 {
                   icon: DollarSign,

@@ -273,7 +273,7 @@ function UserDetailModal({ user, onClose }: { user: User; onClose: () => void })
     ['Full Name', user.fullName],
     ['Email',     user.email],
     ['Role',      user.role],
-    ['Phone',     user.phoneNumber || '—'],
+    ['Phone',     user.phoneNumber || '-'],
     ['Verified',  user.verified ? 'Yes' : 'No'],
     ['Joined',    new Date(user.createdAt).toLocaleDateString()],
   ];
@@ -384,7 +384,7 @@ export function UsersPage({ toast }: { toast: ToastFn }) {
                   <Td>{u.email}</Td>
                   <Td><Badge label={u.role} variant={roleBadge(u.role) as any} /></Td>
                   <Td><VerifiedToggle user={u} onToggleSuccess={handleVerifiedToggle} /></Td>
-                  <Td>{u.phoneNumber || '—'}</Td>
+                  <Td>{u.phoneNumber || '-'}</Td>
                   <Td>{new Date(u.createdAt).toLocaleDateString()}</Td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">

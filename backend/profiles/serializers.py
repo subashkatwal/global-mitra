@@ -51,7 +51,7 @@ class UpdateUserProfileSerializer(serializers.ModelSerializer):
     """
     PATCH /profile/users/me
     Allows updating: fullName, phoneNumber, address.
-    Photo is intentionally excluded — use POST /profile/users/me/photo instead.
+    Photo is intentionally excluded - use POST /profile/users/me/photo instead.
     """
     photo = serializers.ImageField(required=False, allow_null=True)
     phoneNumber = serializers.CharField(
@@ -123,7 +123,7 @@ class UpdateGuideProfileSerializer(serializers.ModelSerializer):
     """
     PATCH /profile/guides/me
     Guide can update: bio, licenseIssuedBy (guide profile fields)
-                      + fullName, phoneNumber, photo (user fields — proxied through)
+                      + fullName, phoneNumber, photo (user fields - proxied through)
     licenseNumber and verificationStatus are blocked at the view level.
     """
 
@@ -182,7 +182,7 @@ class UpdateGuideProfileSerializer(serializers.ModelSerializer):
 
 
 class AdminUserListSerializer(serializers.ModelSerializer):
-    """Admin: list all users (no photo — keeps response lean)"""
+    """Admin: list all users (no photo - keeps response lean)"""
 
     class Meta:
         model = User

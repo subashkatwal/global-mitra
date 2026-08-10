@@ -175,7 +175,7 @@ export function AvatarUpload({ photoUrl, fullName, size = 96, onUploaded }: Avat
         )}
       </AnimatePresence>
 
-      {/* Hidden file input — accept images only, opens gallery on mobile */}
+      {/* Hidden file input - accept images only, opens gallery on mobile */}
       <input
         ref={fileInputRef}
         type="file"

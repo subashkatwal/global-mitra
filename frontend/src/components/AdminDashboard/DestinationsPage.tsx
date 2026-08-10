@@ -6,7 +6,7 @@ import { Badge, Spinner, ErrMsg, Empty, Modal, FormField, inputCls, inputStyle, 
 import type { Destination, ToastFn } from './types';
 
 const display = (v: any) =>
-  v === null || v === undefined || v === '' ? '—' : String(v);
+  v === null || v === undefined || v === '' ? '-' : String(v);
 
 function normaliseDest(raw: any): Destination {
   return {
@@ -375,22 +375,22 @@ export function DestinationsPage({ toast }: { toast: ToastFn }) {
                       ? <img src={d.image} alt={d.name} className="w-10 h-10 rounded-lg object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       : <div className="w-10 h-10 rounded-lg bg-gray-100" />}
                   </td>
-                  {/* ID — truncated, click to copy */}
+                  {/* ID - truncated, click to copy */}
                   <Td>
                     <span
                       className="font-mono text-xs text-gray-400 cursor-pointer hover:text-gray-700 transition-colors"
                       title={`Click to copy: ${d.id}`}
                       onClick={() => navigator.clipboard?.writeText(d.id)}
                     >
-                      {d.id ? d.id.slice(0, 8) + '…' : '—'}
+                      {d.id ? d.id.slice(0, 8) + '…' : '-'}
                     </span>
                   </Td>
                   <Td><span className="font-semibold">{display(d.name)}</span></Td>
                   <Td><Badge label={d.difficulty || 'Unknown'} variant={diffBadge(d.difficulty)} /></Td>
                   <Td>{display(d.bestSeason)}</Td>
                   <Td>{display(d.duration)}</Td>
-                  <Td>{d.averageCost != null ? `Rs ${Number(d.averageCost).toLocaleString()}` : '—'}</Td>
-                  <Td><Badge label={d.crowdLevel || '—'} variant={crowdBadge(d.crowdLevel)} /></Td>
+                  <Td>{d.averageCost != null ? `Rs ${Number(d.averageCost).toLocaleString()}` : '-'}</Td>
+                  <Td><Badge label={d.crowdLevel || '-'} variant={crowdBadge(d.crowdLevel)} /></Td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <ActionBtn icon={Eye}    color={T.primary} title="View"   onClick={() => { setSelected(d); setModal('view'); }} />

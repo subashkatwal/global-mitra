@@ -65,16 +65,16 @@ function unwrapGuide(raw: any): ApiGuide | null {
 }
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
+  if (isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 function formatDateShort(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
+  if (isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
@@ -202,11 +202,11 @@ export function GuideDashboardPage({ onNavigate, guideData }: GuideDashboardPage
   ];
 
   return (
-    // NOTE: No pt-[68px] or min-h-screen here — the parent (GuideProfilePage) 
+    // NOTE: No pt-[68px] or min-h-screen here - the parent (GuideProfilePage) 
     // wraps this in a container that already handles that.
     <div className="max-w-2xl mx-auto px-4 pb-12 space-y-4">
 
-      {/* Title — NO back button here; parent renders it above */}
+      {/* Title - NO back button here; parent renders it above */}
       <motion.div {...stagger(0.5)}>
         <h1 className="text-2xl font-bold text-[#1B4332] tracking-tight">My Dashboard</h1>
         <p className="text-sm text-gray-500 mt-0.5">Everything about your guide account, at a glance.</p>
@@ -275,7 +275,7 @@ export function GuideDashboardPage({ onNavigate, guideData }: GuideDashboardPage
           {/* Info grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {[
-              { icon: Mail,     label: 'Email',        value: guide.user?.email ?? authUser?.email ?? '—' },
+              { icon: Mail,     label: 'Email',        value: guide.user?.email ?? authUser?.email ?? '-' },
               { icon: Phone,    label: 'Phone',        value: guide.user?.phoneNumber },
               { icon: MapPin,   label: 'Address',      value: guide.user?.address },
               { icon: Calendar, label: 'Member Since', value: joinDate },
@@ -304,7 +304,7 @@ export function GuideDashboardPage({ onNavigate, guideData }: GuideDashboardPage
               <p className="text-sm text-gray-700 leading-relaxed">{guide.bio}</p>
             ) : (
               <p className="text-sm text-gray-400 italic">
-                No bio yet —{' '}
+                No bio yet -{' '}
                 <button onClick={() => onNavigate('guide')}
                   className="text-[#2D6A4F] font-semibold not-italic hover:underline">
                   add one
@@ -360,8 +360,8 @@ export function GuideDashboardPage({ onNavigate, guideData }: GuideDashboardPage
 
         <div className="divide-y divide-gray-50 mt-2 pb-1">
           {[
-            { icon: Hash,      label: 'License Number', value: guide.licenseNumber   || '—', mono: true,  locked: true  },
-            { icon: Building2, label: 'Issued By',      value: guide.licenseIssuedBy || '—', mono: false, locked: true  },
+            { icon: Hash,      label: 'License Number', value: guide.licenseNumber   || '-', mono: true,  locked: true  },
+            { icon: Building2, label: 'Issued By',      value: guide.licenseIssuedBy || '-', mono: false, locked: true  },
             { icon: User,      label: 'Guide ID',       value: guide.id,                     mono: true,  locked: false },
             { icon: Calendar,  label: 'Last Updated',   value: lastUpdate,                   mono: false, locked: false },
           ].map((row) => {
